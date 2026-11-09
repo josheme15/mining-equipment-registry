@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -39,6 +41,26 @@ class EquipmentControllerTest {
                 .andExpect(jsonPath("$.fieldErrors.code").exists())
                 .andExpect(jsonPath("$.fieldErrors.typeId").exists())
                 .andExpect(jsonPath("$.fieldErrors.hourMeter").exists());
+        verifyNoInteractions(service);
+    }
+
+    @ParameterizedTest(name = "hourMeter={0} → 400")
+    @ValueSource(strings = {"0", "0.0", "-1", "1.25", "null", "\"\""})
+    void invalidHourMeterReturns400(String hourMeter) throws Exception {
+        mvc.perform(post("/api/equipments").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"CAM-001\",\"typeId\":1,\"hourMeter\":" + hourMeter + "}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.hourMeter").exists());
+        verifyNoInteractions(service);
+    }
+
+    @ParameterizedTest(name = "code=\"{0}\" → 400")
+    @ValueSource(strings = {"", "   ", "CAM/001"})
+    void invalidCodeReturns400(String code) throws Exception {
+        mvc.perform(post("/api/equipments").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"" + code + "\",\"typeId\":1,\"hourMeter\":10}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.code").exists());
         verifyNoInteractions(service);
     }
 

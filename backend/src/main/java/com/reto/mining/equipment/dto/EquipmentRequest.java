@@ -23,7 +23,7 @@ public record EquipmentRequest(
         Long typeId,
 
         @NotNull(message = "El horómetro es obligatorio")
-        @DecimalMin(value = "0.0", message = "El horómetro debe ser mayor o igual a 0")
+        @DecimalMin(value = "0.0", inclusive = false, message = "El horómetro debe ser mayor a 0")
         @DecimalMax(value = "999999999.9", message = "El horómetro es demasiado alto")
         @Digits(integer = 9, fraction = 1, message = "El horómetro admite como máximo 1 decimal")
         BigDecimal hourMeter) {

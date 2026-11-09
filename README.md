@@ -101,7 +101,9 @@ Intervalos iniciales (migración `V2`): **Camión 250 h · Excavadora 500 h · P
 | `horas desde el último mantenimiento = hour_meter − last_maintenance_hour_meter` | `Equipment` |
 | **Requiere mantenimiento** si esas horas son **≥ intervalo del tipo** | `Equipment.requiresMaintenance()` |
 | Registrar mantenimiento: guarda el historial con el horómetro actual y hace `last_maintenance_hour_meter = hour_meter`. **Todo en una transacción.** | `MaintenanceService` |
-| El horómetro **no puede disminuir** ni ser negativo | Entidad + validación + `CHECK` en BD |
+| Código y horómetro **obligatorios**. Código: letras, números, espacios, `-` y `_` (máx. 50) | Frontend + `@Valid` en la API |
+| Horómetro **mayor a 0**, con **máximo 1 decimal** (`1.2` sí, `1.25` no; `0` y negativos no) | Frontend + `@Valid` + entidad |
+| El horómetro **no puede disminuir** | Entidad + `CHECK` en BD |
 | El código es **único**, se normaliza (`cam-001` → `CAM-001`) | Servicio + `UNIQUE` en BD |
 | Un equipo nuevo empieza su ciclo en **0 h** | `Equipment` (ver [decisiones](#decisiones-y-limitaciones)) |
 | Eliminar un equipo borra su historial | `ON DELETE CASCADE` |
@@ -234,10 +236,10 @@ SIMULATE_FAILURE=1 ./deploy.sh     # despliega, falla a propósito y restaura la
 cd backend && ./mvnw test
 ```
 
-19 pruebas automatizadas:
+31 pruebas automatizadas:
 - `EquipmentTest`: la regla de mantenimiento (límite exacto del intervalo, reinicio del ciclo, intervalo por tipo, el horómetro no baja).
 - `EquipmentServiceTest` (Mockito): código duplicado, tipo inexistente, normalización.
-- `EquipmentControllerTest` (MockMvc): validaciones y códigos HTTP (400, 404, 409, 422).
+- `EquipmentControllerTest` (MockMvc): validaciones (código vacío o inválido; horómetro vacío, 0, negativo o con 2 decimales) y códigos HTTP (400, 404, 409, 422).
 
 **GitHub Actions** (`.github/workflows/ci.yml`) corre en cada push y pull request: pruebas del backend, build del frontend y build de la imagen Docker.
 

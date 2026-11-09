@@ -110,9 +110,12 @@ class EquipmentTest {
     }
 
     @Test
-    @DisplayName("El horómetro no puede ser negativo")
-    void hourMeterCannotBeNegative() {
+    @DisplayName("El horómetro debe ser mayor a 0 (ni negativo ni cero)")
+    void hourMeterMustBePositive() {
         assertThatThrownBy(() -> new Equipment("CAM-001", TRUCK, h("-1")))
                 .isInstanceOf(BusinessRuleException.class);
+        assertThatThrownBy(() -> new Equipment("CAM-001", TRUCK, h("0")))
+                .isInstanceOf(BusinessRuleException.class);
+        assertThat(new Equipment("CAM-001", TRUCK, h("0.1")).getHourMeter()).isEqualByComparingTo("0.1");
     }
 }

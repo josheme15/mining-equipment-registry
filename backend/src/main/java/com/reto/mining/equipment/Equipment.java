@@ -64,7 +64,7 @@ public class Equipment {
     }
 
     public Equipment(String code, EquipmentType type, BigDecimal hourMeter) {
-        requireNonNegative(hourMeter);
+        requirePositive(hourMeter);
         this.code = code;
         this.type = type;
         this.hourMeter = hourMeter;
@@ -75,7 +75,7 @@ public class Equipment {
 
     /** Actualiza los datos editables. El horómetro nunca puede retroceder. */
     public void update(String code, EquipmentType type, BigDecimal newHourMeter) {
-        requireNonNegative(newHourMeter);
+        requirePositive(newHourMeter);
         if (newHourMeter.compareTo(hourMeter) < 0) {
             throw new BusinessRuleException(
                     "El horómetro no puede disminuir (actual: " + hourMeter.toPlainString() + " h)");
@@ -108,9 +108,9 @@ public class Equipment {
         return hoursSinceMaintenance().compareTo(BigDecimal.valueOf(type.getMaintenanceIntervalHours())) >= 0;
     }
 
-    private static void requireNonNegative(BigDecimal value) {
-        if (value == null || value.signum() < 0) {
-            throw new BusinessRuleException("El horómetro debe ser mayor o igual a 0");
+    private static void requirePositive(BigDecimal value) {
+        if (value == null || value.signum() <= 0) {
+            throw new BusinessRuleException("El horómetro debe ser mayor a 0");
         }
     }
 

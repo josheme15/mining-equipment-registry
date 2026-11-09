@@ -55,7 +55,7 @@ class EquipmentServiceTest {
     void createRejectsDuplicateCode() {
         when(equipmentRepository.existsByCode("CAM-001")).thenReturn(true);
 
-        assertThatThrownBy(() -> service.create(new EquipmentRequest("CAM-001", 1L, BigDecimal.ZERO)))
+        assertThatThrownBy(() -> service.create(new EquipmentRequest("CAM-001", 1L, BigDecimal.TEN)))
                 .isInstanceOf(ConflictException.class);
         verify(equipmentRepository, never()).saveAndFlush(any());
     }
@@ -65,7 +65,7 @@ class EquipmentServiceTest {
         when(equipmentRepository.existsByCode("CAM-001")).thenReturn(false);
         when(typeRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.create(new EquipmentRequest("CAM-001", 99L, BigDecimal.ZERO)))
+        assertThatThrownBy(() -> service.create(new EquipmentRequest("CAM-001", 99L, BigDecimal.TEN)))
                 .isInstanceOf(BusinessRuleException.class);
     }
 
