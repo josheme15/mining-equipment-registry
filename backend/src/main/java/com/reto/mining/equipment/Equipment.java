@@ -73,15 +73,13 @@ public class Equipment {
 
     // ------------------------------------------------------------------ comportamiento
 
-    /** Actualiza los datos editables. El horómetro nunca puede retroceder. */
-    public void update(String code, EquipmentType type, BigDecimal newHourMeter) {
+    /** Actualiza el horómetro, que nunca puede retroceder. Código y tipo no cambian. */
+    public void updateHourMeter(BigDecimal newHourMeter) {
         requirePositive(newHourMeter);
         if (newHourMeter.compareTo(hourMeter) < 0) {
             throw new BusinessRuleException(
                     "El horómetro no puede disminuir (actual: " + hourMeter.toPlainString() + " h)");
         }
-        this.code = code;
-        this.type = type;
         this.hourMeter = newHourMeter;
     }
 

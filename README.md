@@ -88,8 +88,8 @@ id                  PK          id                          PK          id      
 code        UNIQUE              code                 UNIQUE             equipment_id   FK → equipments
 name                            equipment_type_id    FK ──────►         performed_at      (ON DELETE CASCADE)
 maintenance_interval_hours      hour_meter                              hour_meter_at
-                                last_maintenance_hour_meter             notes
-                                created_at / updated_at
+code_prefix UNIQUE (CAM…)       last_maintenance_hour_meter             notes
+next_sequence                   created_at / updated_at
 ```
 
 Intervalos iniciales (migración `V2`): **Camión 250 h · Excavadora 500 h · Perforadora 400 h**. Se guardan en la base de datos y no en el código, así que se pueden ajustar con una nueva migración.
@@ -101,10 +101,12 @@ Intervalos iniciales (migración `V2`): **Camión 250 h · Excavadora 500 h · P
 | `horas desde el último mantenimiento = hour_meter − last_maintenance_hour_meter` | `Equipment` |
 | **Requiere mantenimiento** si esas horas son **≥ intervalo del tipo** | `Equipment.requiresMaintenance()` |
 | Registrar mantenimiento: guarda el historial con el horómetro actual y hace `last_maintenance_hour_meter = hour_meter`. **Todo en una transacción.** | `MaintenanceService` |
-| Código y horómetro **obligatorios**. Código: letras, números, espacios, `-` y `_` (máx. 50) | Frontend + `@Valid` en la API |
+| El **código se genera automáticamente** por tipo: `CAM-001`, `EXC-001`, `PERF-001`… El correlativo avanza con cada equipo de ese tipo y **no se reutiliza** al eliminar | `EquipmentService` + `equipment_types.next_sequence` (fila bloqueada con `SELECT … FOR UPDATE`) |
+| **Código y tipo no se editan** después de crear (CAM-001 siempre es un camión); al editar solo cambia el horómetro | `UpdateEquipmentRequest` + frontend |
+| Tipo y horómetro **obligatorios** | Frontend + `@Valid` en la API |
 | Horómetro **mayor a 0**, con **máximo 1 decimal** (`1.2` sí, `1.25` no; `0` y negativos no) | Frontend + `@Valid` + entidad |
 | El horómetro **no puede disminuir** | Entidad + `CHECK` en BD |
-| El código es **único**, se normaliza (`cam-001` → `CAM-001`) | Servicio + `UNIQUE` en BD |
+| El código es **único** | Generación con bloqueo + `UNIQUE` en BD |
 | Un equipo nuevo empieza su ciclo en **0 h** | `Equipment` (ver [decisiones](#decisiones-y-limitaciones)) |
 | Eliminar un equipo borra su historial | `ON DELETE CASCADE` |
 
@@ -116,11 +118,11 @@ Base: `https://mining-equipment-registry.onrender.com`
 |---|---|---|---|
 | GET | `/health` | Estado del servicio (incluye conexión a BD) | 200 `{"status":"UP"}` / 503 |
 | GET | `/version` | Commit en ejecución | 200 |
-| GET | `/api/equipment-types` | Tipos e intervalos | 200 |
+| GET | `/api/equipment-types` | Tipos, intervalos y próximo código (`nextCode`) | 200 |
 | GET | `/api/equipments` | Lista de equipos con estado calculado | 200 |
 | GET | `/api/equipments/{id}` | Detalle | 200 / 404 |
-| POST | `/api/equipments` | Crear | 201 / 400 / 409 / 422 |
-| PUT | `/api/equipments/{id}` | Editar | 200 / 400 / 404 / 409 / 422 |
+| POST | `/api/equipments` | Crear: `{typeId, hourMeter}` (el código lo genera el backend) | 201 / 400 / 422 |
+| PUT | `/api/equipments/{id}` | Editar el horómetro: `{hourMeter}` | 200 / 400 / 404 / 422 |
 | DELETE | `/api/equipments/{id}` | Eliminar (con su historial) | 204 / 404 |
 | POST | `/api/equipments/{id}/maintenances` | Registrar mantenimiento | 201 / 404 |
 | GET | `/api/equipments/{id}/maintenances` | Historial (más reciente primero) | 200 / 404 |
@@ -131,7 +133,7 @@ Base: `https://mining-equipment-registry.onrender.com`
 ```bash
 # Crear
 curl -X POST $API/api/equipments -H "Content-Type: application/json" \
-  -d '{"code":"CAM-001","typeId":1,"hourMeter":260}'
+  -d '{"typeId":1,"hourMeter":260}'
 ```
 ```json
 {
@@ -238,14 +240,15 @@ cd backend && ./mvnw test
 
 28 pruebas automatizadas:
 - `EquipmentTest`: la regla de mantenimiento (límite exacto del intervalo, reinicio del ciclo, intervalo por tipo, el horómetro no baja).
-- `EquipmentServiceTest` (Mockito): código duplicado, tipo inexistente, normalización.
-- `EquipmentControllerTest` (MockMvc): validaciones (código vacío o inválido; horómetro vacío, 0, negativo o con 2 decimales) y códigos HTTP (400, 404, 409, 422).
+- `EquipmentServiceTest` (Mockito): códigos correlativos por tipo (CAM-001, CAM-002, PERF-001), salto de códigos ya existentes, tipo inexistente, la edición solo cambia el horómetro.
+- `EquipmentControllerTest` (MockMvc): validaciones (horómetro vacío, 0, negativo o con 2 decimales, al crear y al editar) y códigos HTTP (400, 404, 409, 422).
 
 **GitHub Actions** (`.github/workflows/ci.yml`) corre en cada push y pull request: pruebas del backend, build del frontend y build de la imagen Docker.
 
 ## Decisiones y limitaciones
 
 - **Un equipo nuevo empieza su ciclo en 0 h.** Si se registra con un horómetro que ya supera el intervalo, aparece como "Requiere mantenimiento". Sin historial no se puede asumir que esté al día, así que se elige el criterio conservador. El ciclo se reinicia al registrar el primer mantenimiento.
+- **Código de 3 dígitos** (`CAM-001`): alcanza para 999 equipos por tipo, más que la flota típica de una faena, y es fácil de leer y dictar por radio. Si se supera, el formato sigue solo con `CAM-1000`. Los códigos borrados no se reutilizan para no mezclar el historial de dos máquinas distintas.
 - **El horómetro solo aumenta**, igual que un horómetro físico. Corregir un valor mal ingresado hacia abajo requeriría una funcionalidad aparte con auditoría.
 - **El mantenimiento usa el horómetro actual del equipo**: primero se actualiza el horómetro y luego se registra el mantenimiento.
 - **Monorepo**: un solo `git push` y un solo `deploy.sh` controlan ambos servicios.

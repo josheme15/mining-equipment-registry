@@ -5,12 +5,12 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.reto.mining.equipment.dto.EquipmentRequest;
+import com.reto.mining.equipment.dto.CreateEquipmentRequest;
+import com.reto.mining.equipment.dto.UpdateEquipmentRequest;
 import com.reto.mining.equipment.dto.EquipmentResponse;
 import com.reto.mining.equipmenttype.EquipmentType;
 import com.reto.mining.equipmenttype.EquipmentTypeRepository;
 import com.reto.mining.shared.exception.BusinessRuleException;
-import com.reto.mining.shared.exception.ConflictException;
 import com.reto.mining.shared.exception.NotFoundException;
 
 @Service
@@ -33,24 +33,27 @@ public class EquipmentService {
         return EquipmentResponse.from(findOrThrow(id));
     }
 
+    /**
+     * Crea el equipo con el siguiente código de su tipo (CAM-001, CAM-002…). El tipo se lee con
+     * bloqueo, así dos altas simultáneas del mismo tipo reciben códigos distintos.
+     */
     @Transactional
-    public EquipmentResponse create(EquipmentRequest request) {
-        String code = request.normalizedCode();
-        if (equipmentRepository.existsByCode(code)) {
-            throw new ConflictException("Ya existe un equipo con el código " + code);
+    public EquipmentResponse create(CreateEquipmentRequest request) {
+        EquipmentType type = typeRepository.findForUpdateById(request.typeId())
+                .orElseThrow(() -> unknownType(request.typeId()));
+        String code = type.takeNextCode();
+        // Salta códigos que ya existan (p. ej. creados a mano antes de la autogeneración).
+        while (equipmentRepository.existsByCode(code)) {
+            code = type.takeNextCode();
         }
-        Equipment equipment = new Equipment(code, findType(request.typeId()), request.hourMeter());
+        Equipment equipment = new Equipment(code, type, request.hourMeter());
         return EquipmentResponse.from(equipmentRepository.saveAndFlush(equipment));
     }
 
     @Transactional
-    public EquipmentResponse update(Long id, EquipmentRequest request) {
+    public EquipmentResponse update(Long id, UpdateEquipmentRequest request) {
         Equipment equipment = findOrThrow(id);
-        String code = request.normalizedCode();
-        if (equipmentRepository.existsByCodeAndIdNot(code, id)) {
-            throw new ConflictException("Ya existe otro equipo con el código " + code);
-        }
-        equipment.update(code, findType(request.typeId()), request.hourMeter());
+        equipment.updateHourMeter(request.hourMeter());
         return EquipmentResponse.from(equipmentRepository.saveAndFlush(equipment));
     }
 
@@ -66,8 +69,7 @@ public class EquipmentService {
                 .orElseThrow(() -> new NotFoundException("No existe el equipo con id " + id));
     }
 
-    private EquipmentType findType(Long typeId) {
-        return typeRepository.findById(typeId)
-                .orElseThrow(() -> new BusinessRuleException("El tipo de equipo " + typeId + " no existe"));
+    private static BusinessRuleException unknownType(Long typeId) {
+        return new BusinessRuleException("El tipo de equipo " + typeId + " no existe");
     }
 }

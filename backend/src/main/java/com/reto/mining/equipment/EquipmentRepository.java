@@ -16,6 +16,4 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
     Optional<Equipment> findWithTypeById(Long id);
 
     boolean existsByCode(String code);
-
-    boolean existsByCodeAndIdNot(String code, Long id);
 }

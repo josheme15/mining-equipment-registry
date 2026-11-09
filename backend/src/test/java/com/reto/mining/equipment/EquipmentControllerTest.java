@@ -12,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -37,9 +36,8 @@ class EquipmentControllerTest {
     @Test
     void invalidBodyReturns400WithFieldErrors() throws Exception {
         mvc.perform(post("/api/equipments").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"\",\"typeId\":null,\"hourMeter\":-5}"))
+                        .content("{\"typeId\":null,\"hourMeter\":-5}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.code").exists())
                 .andExpect(jsonPath("$.fieldErrors.typeId").exists())
                 .andExpect(jsonPath("$.fieldErrors.hourMeter").exists());
         verifyNoInteractions(service);
@@ -55,16 +53,13 @@ class EquipmentControllerTest {
         verifyNoInteractions(service);
     }
 
-    @ParameterizedTest(name = "code=\"{0}\" → 400 \"{1}\"")
-    @CsvSource(delimiter = '|', value = {
-            "''      | El código es obligatorio",
-            "'   '   | El código es obligatorio",
-            "CAM/001 | El código solo admite letras, números, espacios, guiones y guiones bajos"})
-    void invalidCodeReturns400(String code, String message) throws Exception {
-        mvc.perform(post("/api/equipments").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"" + code + "\",\"typeId\":1,\"hourMeter\":10}"))
+    @ParameterizedTest(name = "PUT hourMeter={0} → 400")
+    @ValueSource(strings = {"0", "-1", "1.25", "null"})
+    void invalidHourMeterOnUpdateReturns400(String hourMeter) throws Exception {
+        mvc.perform(put("/api/equipments/1").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"hourMeter\":" + hourMeter + "}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.code").value(message));
+                .andExpect(jsonPath("$.fieldErrors.hourMeter").exists());
         verifyNoInteractions(service);
     }
 
@@ -75,11 +70,11 @@ class EquipmentControllerTest {
     }
 
     @Test
-    void duplicateCodeReturns409() throws Exception {
+    void conflictReturns409() throws Exception {
         when(service.create(any())).thenThrow(new ConflictException("Ya existe un equipo con el código CAM-001"));
 
         mvc.perform(post("/api/equipments").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"CAM-001\",\"typeId\":1,\"hourMeter\":10}"))
+                        .content("{\"typeId\":1,\"hourMeter\":10}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Ya existe un equipo con el código CAM-001"));
     }
@@ -89,7 +84,7 @@ class EquipmentControllerTest {
         when(service.update(eq(1L), any())).thenThrow(new BusinessRuleException("El horómetro no puede disminuir"));
 
         mvc.perform(put("/api/equipments/1").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"CAM-001\",\"typeId\":1,\"hourMeter\":5}"))
+                        .content("{\"hourMeter\":5}"))
                 .andExpect(status().isUnprocessableContent());
     }
 

@@ -12,8 +12,8 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 
 const isEdit = computed(() => props.equipment !== null)
+// El código no se edita: lo genera el backend según el tipo (CAM-001, EXC-001, PERF-001…).
 const form = reactive({
-  code: props.equipment?.code ?? '',
   typeId: props.equipment?.type.id ?? props.types[0]?.id ?? null,
   hourMeter: props.equipment ? String(props.equipment.hourMeter) : '', // texto: se filtra al escribir
 })
@@ -22,24 +22,20 @@ const initial = { ...form }
 const isDirty = computed(() => Object.keys(initial).some((k) => String(form[k] ?? '') !== String(initial[k] ?? '')))
 
 const fieldErrors = ref({}) // errores devueltos por el backend
-const touched = reactive({ code: false, typeId: false, hourMeter: false })
+const touched = reactive({ typeId: false, hourMeter: false })
 const confirmingExit = ref(false)
 const generalError = ref('')
 const saving = ref(false)
 
 const selectedType = computed(() => props.types.find((t) => t.id === form.typeId))
 
-const CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 _-]*$/
+// Al crear se muestra el código que le tocará (referencial: se confirma al guardar).
+const displayedCode = computed(() => (isEdit.value ? props.equipment.code : selectedType.value?.nextCode ?? ''))
 const MAX_HOUR_METER = 999_999_999.9
 
-// Mismas reglas que el backend (EquipmentRequest); el backend sigue validando de todos modos.
+// Mismas reglas que el backend (Create/UpdateEquipmentRequest); el backend valida de todos modos.
 function validate() {
   const errors = {}
-  const code = form.code.trim()
-  if (!code) errors.code = 'El código es obligatorio'
-  else if (!CODE_PATTERN.test(code))
-    errors.code = 'El código solo admite letras, números, espacios, guiones y guiones bajos'
-
   if (!form.typeId) errors.typeId = 'El tipo de equipo es obligatorio'
 
   const raw = form.hourMeter.trim()
@@ -96,10 +92,10 @@ async function submit() {
   if (!isValid.value) return
   saving.value = true
   try {
-    const payload = { code: form.code.trim(), typeId: form.typeId, hourMeter: Number(form.hourMeter) }
+    const hourMeter = Number(form.hourMeter)
     const saved = isEdit.value
-      ? await api.updateEquipment(props.equipment.id, payload)
-      : await api.createEquipment(payload)
+      ? await api.updateEquipment(props.equipment.id, { hourMeter })
+      : await api.createEquipment({ typeId: form.typeId, hourMeter })
     emit('saved', saved)
   } catch (err) {
     fieldErrors.value = err.fieldErrors || {}
@@ -114,30 +110,28 @@ async function submit() {
   <BaseModal :title="isEdit ? `Editar ${equipment.code}` : 'Nuevo equipo'" @close="requestClose">
     <form class="form" novalidate @submit.prevent="submit">
       <label class="field">
-        <span>Código</span>
-        <input
-          v-model="form.code"
-          type="text"
-          maxlength="50"
-          placeholder="CAM-001"
-          required
-          autofocus
-          :aria-invalid="!!errorFor('code')"
-          @input="onFieldInput('code')"
-          @blur="touched.code = true"
-        />
-        <small v-if="errorFor('code')" class="error">{{ errorFor('code') }}</small>
-      </label>
-
-      <label class="field">
         <span>Tipo</span>
-        <select v-model="form.typeId" required @change="onFieldInput('typeId'); touched.typeId = true">
+        <select
+          v-model="form.typeId"
+          required
+          :disabled="isEdit"
+          :autofocus="!isEdit"
+          @change="onFieldInput('typeId'); touched.typeId = true"
+        >
           <option v-for="t in types" :key="t.id" :value="t.id">{{ t.name }}</option>
         </select>
         <small v-if="selectedType" class="hint">
           Mantenimiento cada {{ formatHours(selectedType.maintenanceIntervalHours) }}
         </small>
         <small v-if="errorFor('typeId')" class="error">{{ errorFor('typeId') }}</small>
+      </label>
+
+      <label class="field">
+        <span>Código</span>
+        <input :value="displayedCode" type="text" disabled />
+        <small class="hint">
+          {{ isEdit ? 'El código y el tipo no se pueden cambiar' : 'Se genera automáticamente según el tipo' }}
+        </small>
       </label>
 
       <label class="field">
@@ -149,6 +143,7 @@ async function submit() {
           autocomplete="off"
           placeholder="Ej. 1250.5"
           required
+          :autofocus="isEdit"
           :aria-invalid="!!errorFor('hourMeter')"
           @input="onHourMeterInput"
           @blur="touched.hourMeter = true"

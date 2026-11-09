@@ -15,8 +15,8 @@ import com.reto.mining.shared.exception.BusinessRuleException;
 /** Pruebas de la regla de mantenimiento (sin Spring ni base de datos). */
 class EquipmentTest {
 
-    private static final EquipmentType TRUCK = new EquipmentType("TRUCK", "Camión", 250);
-    private static final EquipmentType EXCAVATOR = new EquipmentType("EXCAVATOR", "Excavadora", 500);
+    private static final EquipmentType TRUCK = new EquipmentType("TRUCK", "Camión", 250, "CAM");
+    private static final EquipmentType EXCAVATOR = new EquipmentType("EXCAVATOR", "Excavadora", 500, "EXC");
 
     private static BigDecimal h(String value) {
         return new BigDecimal(value);
@@ -71,10 +71,10 @@ class EquipmentTest {
         Equipment truck = new Equipment("CAM-001", TRUCK, h("260"));
         truck.registerMaintenance(null);
 
-        truck.update("CAM-001", TRUCK, h("509.9"));
+        truck.updateHourMeter(h("509.9"));
         assertThat(truck.requiresMaintenance()).isFalse();
 
-        truck.update("CAM-001", TRUCK, h("510"));
+        truck.updateHourMeter(h("510"));
         assertThat(truck.requiresMaintenance()).isTrue();
     }
 
@@ -89,21 +89,11 @@ class EquipmentTest {
     }
 
     @Test
-    @DisplayName("Cambiar el tipo recalcula el estado con el nuevo intervalo")
-    void changingTypeRecalculates() {
-        Equipment equipment = new Equipment("EQ-001", EXCAVATOR, h("300"));
-        assertThat(equipment.requiresMaintenance()).isFalse();
-
-        equipment.update("EQ-001", TRUCK, h("300"));
-        assertThat(equipment.requiresMaintenance()).isTrue();
-    }
-
-    @Test
     @DisplayName("El horómetro no puede disminuir")
     void hourMeterCannotDecrease() {
         Equipment truck = new Equipment("CAM-001", TRUCK, h("100"));
 
-        assertThatThrownBy(() -> truck.update("CAM-001", TRUCK, h("99.9")))
+        assertThatThrownBy(() -> truck.updateHourMeter(h("99.9")))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("no puede disminuir");
         assertThat(truck.getHourMeter()).isEqualByComparingTo("100");

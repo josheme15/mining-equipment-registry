@@ -82,6 +82,7 @@ th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: 
 .field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; }
 .field > span { font-weight: 600; }
 input, select, textarea { font: inherit; padding: 0.5rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; width: 100%; background: #fff; }
+input:disabled, select:disabled { background: #f3f4f6; color: var(--text); font-weight: 600; cursor: not-allowed; }
 input:focus, select:focus, textarea:focus { outline: 2px solid #fde68a; border-color: var(--primary); }
 .form-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 

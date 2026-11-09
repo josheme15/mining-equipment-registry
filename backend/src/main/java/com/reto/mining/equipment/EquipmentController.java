@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.reto.mining.equipment.dto.EquipmentRequest;
+import com.reto.mining.equipment.dto.CreateEquipmentRequest;
+import com.reto.mining.equipment.dto.UpdateEquipmentRequest;
 import com.reto.mining.equipment.dto.EquipmentResponse;
 
 import jakarta.validation.Valid;
@@ -39,13 +40,13 @@ public class EquipmentController {
     }
 
     @PostMapping
-    public ResponseEntity<EquipmentResponse> create(@Valid @RequestBody EquipmentRequest request) {
+    public ResponseEntity<EquipmentResponse> create(@Valid @RequestBody CreateEquipmentRequest request) {
         EquipmentResponse created = service.create(request);
         return ResponseEntity.created(URI.create("/api/equipments/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public EquipmentResponse update(@PathVariable Long id, @Valid @RequestBody EquipmentRequest request) {
+    public EquipmentResponse update(@PathVariable Long id, @Valid @RequestBody UpdateEquipmentRequest request) {
         return service.update(id, request);
     }
 
