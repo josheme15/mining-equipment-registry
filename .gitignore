@@ -19,3 +19,6 @@ target/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Log temporal de deploy.sh
+.vercel-deploy.log
