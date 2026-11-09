@@ -243,7 +243,7 @@ onMounted(loadAll)
     <ConfirmDialog
       v-if="pendingDelete"
       title="¿Eliminar equipo?"
-      :message="`Se eliminará ${pendingDelete.code} junto con su historial de mantenimientos. Esta acción no se puede deshacer.`"
+      :message="`Se borrará ${pendingDelete.code} y su historial.`"
       confirm-text="Eliminar"
       danger
       :busy="deleting"

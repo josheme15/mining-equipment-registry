@@ -15,7 +15,7 @@ const isEdit = computed(() => props.equipment !== null)
 const form = reactive({
   code: props.equipment?.code ?? '',
   typeId: props.equipment?.type.id ?? props.types[0]?.id ?? null,
-  hourMeter: props.equipment?.hourMeter ?? '',
+  hourMeter: props.equipment ? String(props.equipment.hourMeter) : '', // texto: se filtra al escribir
 })
 // Copia inicial para saber si hay cambios sin guardar.
 const initial = { ...form }
@@ -42,11 +42,12 @@ function validate() {
 
   if (!form.typeId) errors.typeId = 'El tipo de equipo es obligatorio'
 
-  const h = form.hourMeter // v-model.number: '' si está vacío o no es un número válido
-  if (h === '' || h === null || Number.isNaN(h)) errors.hourMeter = 'El horómetro es obligatorio'
+  const raw = form.hourMeter.trim()
+  const h = Number(raw)
+  if (raw === '' || raw === '.') errors.hourMeter = 'El horómetro es obligatorio'
+  else if (!/^\d*\.?\d?$/.test(raw) || Number.isNaN(h)) errors.hourMeter = 'El horómetro admite como máximo 1 decimal'
   else if (h <= 0) errors.hourMeter = 'El horómetro debe ser mayor a 0'
   else if (h > MAX_HOUR_METER) errors.hourMeter = 'El horómetro es demasiado alto'
-  else if (!/^\d+(\.\d)?$/.test(String(h))) errors.hourMeter = 'El horómetro admite como máximo 1 decimal'
   else if (isEdit.value && h < Number(props.equipment.hourMeter))
     errors.hourMeter = `El horómetro no puede disminuir (actual: ${formatHours(props.equipment.hourMeter)})`
   return errors
@@ -64,6 +65,24 @@ function onFieldInput(field) {
   delete fieldErrors.value[field] // el error del backend ya no aplica al valor nuevo
 }
 
+// Filtra lo que se escribe o pega en el horómetro: solo dígitos y un punto decimal
+// (la coma se toma como punto), máximo 9 enteros y 1 decimal. Sin signo ni notación "e".
+function sanitizeHourMeter(value) {
+  const clean = value.replace(/,/g, '.').replace(/[^\d.]/g, '')
+  const dot = clean.indexOf('.')
+  if (dot === -1) return clean.slice(0, 9)
+  const intPart = clean.slice(0, dot).slice(0, 9)
+  const decimal = clean.slice(dot + 1).replace(/\./g, '').slice(0, 1)
+  return `${intPart}.${decimal}`
+}
+
+function onHourMeterInput(event) {
+  const clean = sanitizeHourMeter(event.target.value)
+  event.target.value = clean // corrige el campo aunque el valor del modelo no cambie
+  form.hourMeter = clean
+  onFieldInput('hourMeter')
+}
+
 // Cancelar, ✕, Escape o clic en el fondo: si hay cambios, pide confirmación.
 function requestClose() {
   if (saving.value || confirmingExit.value) return
@@ -77,7 +96,7 @@ async function submit() {
   if (!isValid.value) return
   saving.value = true
   try {
-    const payload = { code: form.code.trim(), typeId: form.typeId, hourMeter: form.hourMeter }
+    const payload = { code: form.code.trim(), typeId: form.typeId, hourMeter: Number(form.hourMeter) }
     const saved = isEdit.value
       ? await api.updateEquipment(props.equipment.id, payload)
       : await api.createEquipment(payload)
@@ -124,14 +143,14 @@ async function submit() {
       <label class="field">
         <span>Horómetro (horas de uso)</span>
         <input
-          v-model.number="form.hourMeter"
-          type="number"
-          min="0.1"
-          step="0.1"
+          :value="form.hourMeter"
+          type="text"
+          inputmode="decimal"
+          autocomplete="off"
           placeholder="Ej. 1250.5"
           required
           :aria-invalid="!!errorFor('hourMeter')"
-          @input="onFieldInput('hourMeter')"
+          @input="onHourMeterInput"
           @blur="touched.hourMeter = true"
         />
         <small v-if="!isEdit" class="hint">Mayor a 0, hasta 1 decimal (ej. 1.2)</small>
