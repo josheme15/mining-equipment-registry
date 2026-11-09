@@ -5,6 +5,7 @@ import { formatHours } from './utils/format'
 import EquipmentFormModal from './components/EquipmentFormModal.vue'
 import MaintenanceModal from './components/MaintenanceModal.vue'
 import StatusBadge from './components/StatusBadge.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 
 const equipments = ref([])
 const types = ref([])
@@ -12,6 +13,9 @@ const loading = ref(true)
 const loadError = ref('')
 const waitedSeconds = ref(0)
 const notice = ref('')
+const noticeType = ref('success') // 'success' | 'error'
+const pendingDelete = ref(null) // equipo a eliminar (abre el diálogo de confirmación)
+const deleting = ref(false)
 
 const filter = ref('all') // 'all' | 'due'
 const search = ref('')
@@ -33,9 +37,12 @@ const visibleEquipments = computed(() => {
 const progress = (e) =>
   Math.min(100, (Number(e.hoursSinceMaintenance) / e.type.maintenanceIntervalHours) * 100)
 
-function flash(message) {
+let flashTimer
+function flash(message, type = 'success') {
   notice.value = message
-  setTimeout(() => (notice.value = ''), 3000)
+  noticeType.value = type
+  clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => (notice.value = ''), type === 'error' ? 6000 : 3000)
 }
 
 // El plan gratuito de Render duerme el backend; al despertar, las primeras peticiones
@@ -91,14 +98,22 @@ async function onSaved(saved) {
   flash(wasEdit ? `Equipo ${saved.code} actualizado` : `Equipo ${saved.code} creado`)
 }
 
-async function remove(equipment) {
-  if (!confirm(`¿Eliminar el equipo ${equipment.code}? También se borrará su historial de mantenimientos.`)) return
+function remove(equipment) {
+  pendingDelete.value = equipment
+}
+
+async function confirmDelete() {
+  const equipment = pendingDelete.value
+  deleting.value = true
   try {
     await api.deleteEquipment(equipment.id)
     await reloadEquipments()
     flash(`Equipo ${equipment.code} eliminado`)
   } catch (err) {
-    alert(err.message)
+    flash(`No se pudo eliminar ${equipment.code}: ${err.message}`, 'error')
+  } finally {
+    deleting.value = false
+    pendingDelete.value = null
   }
 }
 
@@ -123,7 +138,7 @@ onMounted(loadAll)
     </header>
 
     <main class="container">
-      <p v-if="notice" class="alert alert-success">{{ notice }}</p>
+      <p v-if="notice" class="alert" :class="noticeType === 'error' ? 'alert-error' : 'alert-success'">{{ notice }}</p>
 
       <div v-if="loading" class="card empty">
         Cargando equipos…
@@ -224,6 +239,16 @@ onMounted(loadAll)
       :equipment="maintenanceEquipment"
       @close="maintenanceId = null"
       @registered="onMaintenanceRegistered"
+    />
+    <ConfirmDialog
+      v-if="pendingDelete"
+      title="¿Eliminar equipo?"
+      :message="`Se eliminará ${pendingDelete.code} junto con su historial de mantenimientos. Esta acción no se puede deshacer.`"
+      confirm-text="Eliminar"
+      danger
+      :busy="deleting"
+      @confirm="confirmDelete"
+      @cancel="pendingDelete = null"
     />
   </div>
 </template>

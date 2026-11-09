@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { api } from '../api/client'
 import { formatHours } from '../utils/format'
 import BaseModal from './BaseModal.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps({
   types: { type: Array, required: true },
@@ -16,7 +17,13 @@ const form = reactive({
   typeId: props.equipment?.type.id ?? props.types[0]?.id ?? null,
   hourMeter: props.equipment?.hourMeter ?? '',
 })
-const fieldErrors = ref({})
+// Copia inicial para saber si hay cambios sin guardar.
+const initial = { ...form }
+const isDirty = computed(() => Object.keys(initial).some((k) => String(form[k] ?? '') !== String(initial[k] ?? '')))
+
+const fieldErrors = ref({}) // errores devueltos por el backend
+const touched = reactive({ code: false, typeId: false, hourMeter: false })
+const confirmingExit = ref(false)
 const generalError = ref('')
 const saving = ref(false)
 
@@ -45,10 +52,29 @@ function validate() {
   return errors
 }
 
+// Validación en vivo: el botón de guardar se habilita solo si todo es válido.
+const clientErrors = computed(() => validate())
+const isValid = computed(() => Object.keys(clientErrors.value).length === 0)
+
+// Un error de validación se muestra cuando el usuario ya pasó por el campo;
+// si no, se muestra el que haya devuelto el backend.
+const errorFor = (field) => (touched[field] && clientErrors.value[field]) || fieldErrors.value[field] || ''
+
+function onFieldInput(field) {
+  delete fieldErrors.value[field] // el error del backend ya no aplica al valor nuevo
+}
+
+// Cancelar, ✕, Escape o clic en el fondo: si hay cambios, pide confirmación.
+function requestClose() {
+  if (saving.value || confirmingExit.value) return
+  if (isDirty.value) confirmingExit.value = true
+  else emit('close')
+}
+
 async function submit() {
   generalError.value = ''
-  fieldErrors.value = validate()
-  if (Object.keys(fieldErrors.value).length) return
+  Object.keys(touched).forEach((k) => (touched[k] = true))
+  if (!isValid.value) return
   saving.value = true
   try {
     const payload = { code: form.code.trim(), typeId: form.typeId, hourMeter: form.hourMeter }
@@ -66,41 +92,77 @@ async function submit() {
 </script>
 
 <template>
-  <BaseModal :title="isEdit ? `Editar ${equipment.code}` : 'Nuevo equipo'" @close="emit('close')">
+  <BaseModal :title="isEdit ? `Editar ${equipment.code}` : 'Nuevo equipo'" @close="requestClose">
     <form class="form" novalidate @submit.prevent="submit">
       <label class="field">
         <span>Código</span>
-        <input v-model="form.code" type="text" maxlength="50" placeholder="CAM-001" required autofocus />
-        <small v-if="fieldErrors.code" class="error">{{ fieldErrors.code }}</small>
+        <input
+          v-model="form.code"
+          type="text"
+          maxlength="50"
+          placeholder="CAM-001"
+          required
+          autofocus
+          :aria-invalid="!!errorFor('code')"
+          @input="onFieldInput('code')"
+          @blur="touched.code = true"
+        />
+        <small v-if="errorFor('code')" class="error">{{ errorFor('code') }}</small>
       </label>
 
       <label class="field">
         <span>Tipo</span>
-        <select v-model="form.typeId" required>
+        <select v-model="form.typeId" required @change="onFieldInput('typeId'); touched.typeId = true">
           <option v-for="t in types" :key="t.id" :value="t.id">{{ t.name }}</option>
         </select>
         <small v-if="selectedType" class="hint">
           Mantenimiento cada {{ formatHours(selectedType.maintenanceIntervalHours) }}
         </small>
-        <small v-if="fieldErrors.typeId" class="error">{{ fieldErrors.typeId }}</small>
+        <small v-if="errorFor('typeId')" class="error">{{ errorFor('typeId') }}</small>
       </label>
 
       <label class="field">
         <span>Horómetro (horas de uso)</span>
-        <input v-model.number="form.hourMeter" type="number" min="0.1" step="0.1" placeholder="Ej. 1250.5" required />
+        <input
+          v-model.number="form.hourMeter"
+          type="number"
+          min="0.1"
+          step="0.1"
+          placeholder="Ej. 1250.5"
+          required
+          :aria-invalid="!!errorFor('hourMeter')"
+          @input="onFieldInput('hourMeter')"
+          @blur="touched.hourMeter = true"
+        />
         <small v-if="!isEdit" class="hint">Mayor a 0, hasta 1 decimal (ej. 1.2)</small>
         <small v-if="isEdit" class="hint">No puede ser menor a {{ formatHours(equipment.hourMeter) }}</small>
-        <small v-if="fieldErrors.hourMeter" class="error">{{ fieldErrors.hourMeter }}</small>
+        <small v-if="errorFor('hourMeter')" class="error">{{ errorFor('hourMeter') }}</small>
       </label>
 
       <p v-if="generalError" class="alert alert-error">{{ generalError }}</p>
 
       <div class="form-actions">
-        <button type="button" class="btn btn-secondary" @click="emit('close')">Cancelar</button>
-        <button type="submit" class="btn btn-primary" :disabled="saving">
+        <button type="button" class="btn btn-secondary" :disabled="saving" @click="requestClose">Cancelar</button>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          :disabled="saving || !isValid"
+          :title="!isValid ? 'Completa correctamente todos los campos' : undefined"
+        >
           {{ saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear equipo' }}
         </button>
       </div>
     </form>
+
+    <ConfirmDialog
+      v-if="confirmingExit"
+      title="¿Salir sin guardar?"
+      :message="isEdit ? `Los cambios en ${equipment.code} se perderán.` : 'Los datos del nuevo equipo se perderán.'"
+      confirm-text="Salir sin guardar"
+      cancel-text="Seguir editando"
+      danger
+      @confirm="emit('close')"
+      @cancel="confirmingExit = false"
+    />
   </BaseModal>
 </template>
