@@ -210,7 +210,7 @@ onMounted(loadAll)
                   <td><StatusBadge :requires-maintenance="e.requiresMaintenance" /></td>
                   <td>
                     <div class="actions">
-                      <button class="btn btn-small" :class="e.requiresMaintenance ? 'btn-warning' : 'btn-secondary'" @click="maintenanceId = e.id">
+                      <button class="btn btn-small" :class="e.requiresMaintenance ? 'btn-warning' : 'btn-info'" @click="maintenanceId = e.id">
                         🔧 Mantenimiento
                       </button>
                       <button class="btn btn-small btn-secondary" @click="openEdit(e)">Editar</button>
