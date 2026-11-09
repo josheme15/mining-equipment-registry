@@ -18,7 +18,7 @@ const noticeType = ref('success') // 'success' | 'error'
 const pendingDelete = ref(null) // equipo a eliminar (abre el diálogo de confirmación)
 const deleting = ref(false)
 
-const filter = ref('all') // 'all' | 'due'
+const filter = ref('all') // 'all' | 'due' (requieren mantenimiento) | 'ok' (operativos)
 const search = ref('')
 
 // Modales: formulario (crear/editar) y mantenimiento
@@ -31,7 +31,9 @@ const dueCount = computed(() => equipments.value.filter((e) => e.requiresMainten
 const visibleEquipments = computed(() => {
   const term = search.value.trim().toUpperCase()
   return equipments.value.filter(
-    (e) => (filter.value === 'all' || e.requiresMaintenance) && (!term || e.code.includes(term)),
+    (e) =>
+      (filter.value === 'all' || (filter.value === 'due') === e.requiresMaintenance) &&
+      (!term || e.code.includes(term)),
   )
 })
 
@@ -168,16 +170,16 @@ onMounted(loadAll)
             <span class="stat-value danger">{{ dueCount }}</span>
             <span class="stat-label">Requieren mantenimiento</span>
           </button>
-          <div class="stat card">
+          <button class="stat card" :class="{ active: filter === 'ok' }" @click="filter = 'ok'">
             <span class="stat-value ok">{{ equipments.length - dueCount }}</span>
             <span class="stat-label">Operativos</span>
-          </div>
+          </button>
         </section>
 
         <section class="card">
           <div class="toolbar">
             <input v-model="search" type="search" placeholder="Buscar por código…" />
-            <span class="muted">{{ filter === 'due' ? 'Mostrando solo los que requieren mantenimiento' : '' }}</span>
+            <span class="muted">{{ filter === 'due' ? 'Mostrando solo los que requieren mantenimiento' : filter === 'ok' ? 'Mostrando solo los operativos' : '' }}</span>
           </div>
 
           <p v-if="equipments.length === 0" class="empty">

@@ -72,9 +72,9 @@ th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: 
 .btn-small { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
-/* Cancelar / volver: naranja (distinto del ámbar de la acción principal) */
-.btn-secondary { background: #c2410c; color: #fff; font-weight: 500; }
-.btn-secondary:hover:not(:disabled) { background: #9a3412; }
+/* Cancelar / volver: gris pizarra oscuro (neutro, no compite con la acción principal ni con Eliminar) */
+.btn-secondary { background: #475569; color: #fff; font-weight: 500; }
+.btn-secondary:hover:not(:disabled) { background: #334155; }
 .btn-edit { background: #0f766e; color: #fff; font-weight: 600; }
 .btn-edit:hover:not(:disabled) { background: #115e59; }
 /* Acciones de la tabla: fondos sólidos con texto blanco (contraste ≥ 4.5:1) */
