@@ -10,6 +10,7 @@ const equipments = ref([])
 const types = ref([])
 const loading = ref(true)
 const loadError = ref('')
+const waitedSeconds = ref(0)
 const notice = ref('')
 
 const filter = ref('all') // 'all' | 'due'
@@ -37,15 +38,34 @@ function flash(message) {
   setTimeout(() => (notice.value = ''), 3000)
 }
 
+// El plan gratuito de Render duerme el backend; al despertar, las primeras peticiones
+// pueden fallar o colgarse. Se reintenta solo los errores de conexión durante ~2 min.
+const WAKE_UP_LIMIT_MS = 120_000
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
 async function loadAll() {
+  loading.value = true
   loadError.value = ''
+  const start = Date.now()
+  const timer = setInterval(() => (waitedSeconds.value = Math.round((Date.now() - start) / 1000)), 1000)
   try {
-    const [eqs, tps] = await Promise.all([api.listEquipments(), api.listTypes()])
-    equipments.value = eqs
-    types.value = tps
-  } catch (err) {
-    loadError.value = err.message
+    for (;;) {
+      try {
+        const [eqs, tps] = await Promise.all([api.listEquipments(), api.listTypes()])
+        equipments.value = eqs
+        types.value = tps
+        return
+      } catch (err) {
+        if (err.status !== 0 || Date.now() - start > WAKE_UP_LIMIT_MS) {
+          loadError.value = err.message
+          return
+        }
+        await sleep(3000)
+      }
+    }
   } finally {
+    clearInterval(timer)
+    waitedSeconds.value = 0
     loading.value = false
   }
 }
@@ -105,11 +125,16 @@ onMounted(loadAll)
     <main class="container">
       <p v-if="notice" class="alert alert-success">{{ notice }}</p>
 
-      <div v-if="loading" class="card empty">Cargando equipos… (si el servidor estaba inactivo puede tardar ~1 min)</div>
+      <div v-if="loading" class="card empty">
+        Cargando equipos…
+        <p v-if="waitedSeconds >= 5" class="hint">
+          Despertando el servidor (plan gratuito, puede tardar ~1 min)… {{ waitedSeconds }} s
+        </p>
+      </div>
 
       <div v-else-if="loadError" class="card empty">
         <p class="alert alert-error">{{ loadError }}</p>
-        <button class="btn btn-secondary" @click="loading = true; loadAll()">Reintentar</button>
+        <button class="btn btn-secondary" @click="loadAll">Reintentar</button>
       </div>
 
       <template v-else>

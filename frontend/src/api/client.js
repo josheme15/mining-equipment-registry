@@ -10,13 +10,17 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, { method = 'GET', body } = {}) {
+// Sin límite, una petición puede quedar colgada mientras Render despierta el servidor.
+const REQUEST_TIMEOUT_MS = 25_000
+
+async function request(path, { method = 'GET', body, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
   let res
   try {
     res = await fetch(`${API_URL}${path}`, {
       method,
       headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(timeoutMs),
     })
   } catch {
     throw new ApiError(0, 'No se pudo conectar con el servidor. Si estuvo inactivo, puede tardar ~1 min en despertar.')
