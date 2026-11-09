@@ -1,0 +1,39 @@
+# Entorno local: MySQL (+ backend opcional).
+#   Solo base de datos:   docker compose up -d mysql
+#   Todo:                 docker compose up -d --build
+# Las credenciales son SOLO para desarrollo local.
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: mining-mysql
+    environment:
+      MYSQL_DATABASE: mining
+      MYSQL_USER: mining
+      MYSQL_PASSWORD: mining
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-umining", "-pmining"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    container_name: mining-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/mining
+      DB_USER: mining
+      DB_PASSWORD: mining
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql-data:

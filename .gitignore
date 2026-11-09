@@ -1,0 +1,21 @@
+# Variables de entorno con secretos
+.env
+.env.*
+!.env.example
+
+# Node / Vue
+node_modules/
+dist/
+
+# Java / Maven
+target/
+
+# Vercel
+.vercel/
+
+# IDE / SO
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
