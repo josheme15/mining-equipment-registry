@@ -20,8 +20,17 @@ const noticeType = ref('success') // 'success' | 'error'
 const pendingDelete = ref(null) // equipo a eliminar (abre el diálogo de confirmación)
 const deleting = ref(false)
 
+// Filtros combinables. `filter` (estado) lo comparten las tarjetas y el select de Estado.
 const filter = ref('all') // 'all' | 'due' (requieren mantenimiento) | 'ok' (operativos)
+const typeFilter = ref('') // '' = todos; si no, id del tipo
 const search = ref('')
+const hasFilters = computed(() => filter.value !== 'all' || typeFilter.value !== '' || search.value.trim() !== '')
+
+function clearFilters() {
+  filter.value = 'all'
+  typeFilter.value = ''
+  search.value = ''
+}
 
 // Modales: formulario (crear/editar) y mantenimiento
 const formOpen = ref(false)
@@ -35,6 +44,7 @@ const visibleEquipments = computed(() => {
   return equipments.value.filter(
     (e) =>
       (filter.value === 'all' || (filter.value === 'due') === e.requiresMaintenance) &&
+      (typeFilter.value === '' || e.type.id === typeFilter.value) &&
       (!term || e.code.includes(term)),
   )
 })
@@ -54,7 +64,7 @@ const pagedEquipments = computed(() => {
   return visibleEquipments.value.slice(start, start + pageSize.value)
 })
 // Al cambiar filtro, búsqueda o tamaño se vuelve a la primera página.
-watch([filter, search, preferredPageSize], () => (page.value = 1))
+watch([filter, typeFilter, search, preferredPageSize], () => (page.value = 1))
 // Si al eliminar quedan menos páginas, no quedarse en una página vacía.
 watch(totalPages, (n) => {
   if (page.value > n) page.value = n
@@ -201,14 +211,36 @@ onMounted(loadAll)
 
         <section class="card">
           <div class="toolbar">
-            <input v-model="search" type="search" placeholder="Buscar por código…" />
-            <span class="muted">{{ filter === 'due' ? 'Mostrando solo los que requieren mantenimiento' : filter === 'ok' ? 'Mostrando solo los operativos' : '' }}</span>
+            <input v-model="search" type="search" placeholder="Buscar por código…" aria-label="Buscar por código" />
+            <label class="filter-select">
+              <span>Tipo</span>
+              <select v-model="typeFilter">
+                <option value="">Todos</option>
+                <option v-for="t in types" :key="t.id" :value="t.id">{{ t.name }}</option>
+              </select>
+            </label>
+            <label class="filter-select">
+              <span>Estado</span>
+              <select v-model="filter">
+                <option value="all">Todos</option>
+                <option value="due">Requiere mantenimiento</option>
+                <option value="ok">Operativo</option>
+              </select>
+            </label>
+            <button v-if="hasFilters" class="btn btn-small btn-secondary" @click="clearFilters">
+              <AppIcon name="x" size="14" /> Limpiar filtros
+            </button>
           </div>
 
           <p v-if="equipments.length === 0" class="empty">
             Aún no hay equipos. Crea el primero con <strong>+ Nuevo equipo</strong>.
           </p>
-          <p v-else-if="visibleEquipments.length === 0" class="empty">Ningún equipo coincide con el filtro.</p>
+          <div v-else-if="visibleEquipments.length === 0" class="empty">
+            <p>Ningún equipo coincide con los filtros.</p>
+            <button class="btn btn-small btn-secondary" @click="clearFilters">
+              <AppIcon name="x" size="14" /> Limpiar filtros
+            </button>
+          </div>
 
           <div v-else class="table-wrap">
             <table>
