@@ -39,14 +39,8 @@ public class EquipmentService {
      */
     @Transactional
     public EquipmentResponse create(CreateEquipmentRequest request) {
-        EquipmentType type = typeRepository.findForUpdateById(request.typeId())
-                .orElseThrow(() -> unknownType(request.typeId()));
-        String code = type.takeNextCode();
-        // Salta códigos que ya existan (p. ej. creados a mano antes de la autogeneración).
-        while (equipmentRepository.existsByCode(code)) {
-            code = type.takeNextCode();
-        }
-        Equipment equipment = new Equipment(code, type, request.hourMeter());
+        EquipmentType type = lockType(request.typeId());
+        Equipment equipment = new Equipment(nextFreeCode(type), type, request.hourMeter());
         return EquipmentResponse.from(equipmentRepository.saveAndFlush(equipment));
     }
 
@@ -54,6 +48,11 @@ public class EquipmentService {
     public EquipmentResponse update(Long id, UpdateEquipmentRequest request) {
         Equipment equipment = findOrThrow(id);
         equipment.updateHourMeter(request.hourMeter());
+        Long newTypeId = request.typeId();
+        if (newTypeId != null && !newTypeId.equals(equipment.getType().getId())) {
+            EquipmentType newType = lockType(newTypeId);
+            equipment.changeType(newType, nextFreeCode(newType));
+        }
         return EquipmentResponse.from(equipmentRepository.saveAndFlush(equipment));
     }
 
@@ -67,6 +66,20 @@ public class EquipmentService {
     public Equipment findOrThrow(Long id) {
         return equipmentRepository.findWithTypeById(id)
                 .orElseThrow(() -> new NotFoundException("No existe el equipo con id " + id));
+    }
+
+    /** Lee el tipo con bloqueo (SELECT … FOR UPDATE) para tomar su correlativo sin duplicados. */
+    private EquipmentType lockType(Long typeId) {
+        return typeRepository.findForUpdateById(typeId).orElseThrow(() -> unknownType(typeId));
+    }
+
+    /** Siguiente código libre del tipo; salta los que ya existan (p. ej. creados a mano antes). */
+    private String nextFreeCode(EquipmentType type) {
+        String code = type.takeNextCode();
+        while (equipmentRepository.existsByCode(code)) {
+            code = type.takeNextCode();
+        }
+        return code;
     }
 
     private static BusinessRuleException unknownType(Long typeId) {

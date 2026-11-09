@@ -128,13 +128,15 @@ function openEdit(equipment) {
 }
 
 async function onSaved(saved) {
-  const wasEdit = editing.value !== null
+  const previousCode = editing.value?.code
   formOpen.value = false
   // Los tipos traen el próximo código sugerido (CAM-002…), que cambia al crear.
   const [eqs, tps] = await Promise.all([api.listEquipments(), api.listTypes()])
   equipments.value = eqs
   types.value = tps
-  flash(wasEdit ? `Equipo ${saved.code} actualizado` : `Equipo ${saved.code} creado`)
+  if (!previousCode) flash(`Equipo ${saved.code} creado`)
+  else if (previousCode !== saved.code) flash(`Equipo ${previousCode} actualizado: ahora es ${saved.code}`)
+  else flash(`Equipo ${saved.code} actualizado`)
 }
 
 function remove(equipment) {

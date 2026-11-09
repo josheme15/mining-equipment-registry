@@ -113,6 +113,7 @@ th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: 
 input, select, textarea { font: inherit; padding: 0.5rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; width: 100%; background: #fff; }
 input:disabled, select:disabled { background: #f3f4f6; color: var(--text); font-weight: 600; cursor: not-allowed; }
 input:focus, select:focus, textarea:focus { outline: 2px solid #fde68a; border-color: var(--primary); }
+.code-change { font-size: 0.8rem; color: #075985; background: #e0f2fe; border-radius: 6px; padding: 0.4rem 0.6rem; }
 .form-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 
 /* Alertas */

@@ -73,7 +73,17 @@ public class Equipment {
 
     // ------------------------------------------------------------------ comportamiento
 
-    /** Actualiza el horómetro, que nunca puede retroceder. Código y tipo no cambian. */
+    /**
+     * Cambia el tipo (p. ej. para corregir uno mal elegido) junto con su código nuevo, que debe
+     * venir del correlativo del nuevo tipo. Se conserva el historial; el estado se recalcula con
+     * el intervalo del nuevo tipo.
+     */
+    public void changeType(EquipmentType newType, String newCode) {
+        this.type = newType;
+        this.code = newCode;
+    }
+
+    /** Actualiza el horómetro, que nunca puede retroceder. */
     public void updateHourMeter(BigDecimal newHourMeter) {
         requirePositive(newHourMeter);
         if (newHourMeter.compareTo(hourMeter) < 0) {

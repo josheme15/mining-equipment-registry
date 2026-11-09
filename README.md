@@ -104,7 +104,7 @@ Intervalos iniciales (migración `V2`): **Camión 250 h · Excavadora 500 h · P
 | No se registra otro mantenimiento si el horómetro **no avanzó** desde el último (el ciclo ya está en 0; solo duplicaría el historial) | `Equipment` (422) + frontend |
 | Próximo mantenimiento = `last_maintenance_hour_meter + intervalo`; atraso = horas pasadas de ese punto | `Equipment` → `nextMaintenanceHourMeter`, `overdueHours` |
 | El **código se genera automáticamente** por tipo: `CAM-001`, `EXC-001`, `PERF-001`… El correlativo avanza con cada equipo de ese tipo y **no se reutiliza** al eliminar | `EquipmentService` + `equipment_types.next_sequence` (fila bloqueada con `SELECT … FOR UPDATE`) |
-| **Código y tipo no se editan** después de crear (CAM-001 siempre es un camión); al editar solo cambia el horómetro | `UpdateEquipmentRequest` + frontend |
+| Al editar se puede **cambiar el tipo**: el equipo recibe el **siguiente código del nuevo tipo** (CAM-004 → EXC-006), conserva su historial y su estado se recalcula con el nuevo intervalo. El código nunca se escribe a mano | `EquipmentService.update` + confirmación en el frontend |
 | Tipo y horómetro **obligatorios** | Frontend + `@Valid` en la API |
 | Horómetro **mayor a 0**, con **máximo 1 decimal** (`1.2` sí, `1.25` no; `0` y negativos no) | Frontend + `@Valid` + entidad |
 | El horómetro **no puede disminuir** | Entidad + `CHECK` en BD |
@@ -124,7 +124,7 @@ Base: `https://mining-equipment-registry.onrender.com`
 | GET | `/api/equipments` | Lista de equipos con estado calculado | 200 |
 | GET | `/api/equipments/{id}` | Detalle | 200 / 404 |
 | POST | `/api/equipments` | Crear: `{typeId, hourMeter}` (el código lo genera el backend) | 201 / 400 / 422 |
-| PUT | `/api/equipments/{id}` | Editar el horómetro: `{hourMeter}` | 200 / 400 / 404 / 422 |
+| PUT | `/api/equipments/{id}` | Editar: `{hourMeter, typeId?}` (si cambia el tipo, se asigna un código nuevo) | 200 / 400 / 404 / 422 |
 | DELETE | `/api/equipments/{id}` | Eliminar (con su historial) | 204 / 404 |
 | POST | `/api/equipments/{id}/maintenances` | Registrar mantenimiento | 201 / 404 |
 | GET | `/api/equipments/{id}/maintenances` | Historial (más reciente primero) | 200 / 404 |
@@ -240,9 +240,9 @@ SIMULATE_FAILURE=1 ./deploy.sh     # despliega, falla a propósito y restaura la
 cd backend && ./mvnw test
 ```
 
-30 pruebas automatizadas:
+33 pruebas automatizadas:
 - `EquipmentTest`: la regla de mantenimiento (límite exacto del intervalo, reinicio del ciclo, intervalo por tipo, el horómetro no baja, próximo mantenimiento y atraso, no se duplica un mantenimiento sin que avance el horómetro).
-- `EquipmentServiceTest` (Mockito): códigos correlativos por tipo (CAM-001, CAM-002, PERF-001), salto de códigos ya existentes, tipo inexistente, la edición solo cambia el horómetro.
+- `EquipmentServiceTest` (Mockito): códigos correlativos por tipo (CAM-001, CAM-002, PERF-001), salto de códigos ya existentes, tipo inexistente, edición del horómetro, cambio de tipo con código nuevo e historial intacto.
 - `EquipmentControllerTest` (MockMvc): validaciones (horómetro vacío, 0, negativo o con 2 decimales, al crear y al editar) y códigos HTTP (400, 404, 409, 422).
 
 **GitHub Actions** (`.github/workflows/ci.yml`) corre en cada push y pull request: pruebas del backend, build del frontend y build de la imagen Docker.
@@ -250,6 +250,7 @@ cd backend && ./mvnw test
 ## Decisiones y limitaciones
 
 - **Un equipo nuevo empieza su ciclo en 0 h.** Si se registra con un horómetro que ya supera el intervalo, aparece como "Requiere mantenimiento". Sin historial no se puede asumir que esté al día, así que se elige el criterio conservador. El ciclo se reinicia al registrar el primer mantenimiento.
+- **El código no se edita a mano; el tipo sí.** El código es la identidad del equipo (como una placa) y sigue el formato del tipo. Cambiar el tipo sirve para corregir un error de registro sin perder el historial, que es lo que pasaría si hubiera que eliminar y volver a crear. Por eso cambia también el código, previa confirmación, y el anterior no se reutiliza.
 - **Código de 3 dígitos** (`CAM-001`): alcanza para 999 equipos por tipo, más que la flota típica de una faena, y es fácil de leer y dictar por radio. Si se supera, el formato sigue solo con `CAM-1000`. Los códigos borrados no se reutilizan para no mezclar el historial de dos máquinas distintas.
 - **El horómetro solo aumenta**, igual que un horómetro físico. Corregir un valor mal ingresado hacia abajo requeriría una funcionalidad aparte con auditoría.
 - **El mantenimiento usa el horómetro actual del equipo**: primero se actualiza el horómetro y luego se registra el mantenimiento.

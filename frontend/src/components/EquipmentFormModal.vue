@@ -25,13 +25,18 @@ const isDirty = computed(() => Object.keys(initial).some((k) => String(form[k] ?
 const fieldErrors = ref({}) // errores devueltos por el backend
 const touched = reactive({ typeId: false, hourMeter: false })
 const confirmingExit = ref(false)
+const confirmingTypeChange = ref(false)
 const generalError = ref('')
 const saving = ref(false)
 
 const selectedType = computed(() => props.types.find((t) => t.id === form.typeId))
 
 // Al crear se muestra el código que le tocará (referencial: se confirma al guardar).
-const displayedCode = computed(() => (isEdit.value ? props.equipment.code : selectedType.value?.nextCode ?? ''))
+// Al editar, cambiar el tipo le asigna un código nuevo del correlativo de ese tipo.
+const typeChanged = computed(() => isEdit.value && form.typeId !== props.equipment.type.id)
+const displayedCode = computed(() =>
+  isEdit.value && !typeChanged.value ? props.equipment.code : selectedType.value?.nextCode ?? '',
+)
 const MAX_HOUR_METER = 999_999_999.9
 
 // Mismas reglas que el backend (Create/UpdateEquipmentRequest); el backend valida de todos modos.
@@ -82,20 +87,27 @@ function onHourMeterInput(event) {
 
 // Cancelar, ✕, Escape o clic en el fondo: si hay cambios, pide confirmación.
 function requestClose() {
-  if (saving.value || confirmingExit.value) return
+  if (saving.value || confirmingExit.value || confirmingTypeChange.value) return
   if (isDirty.value) confirmingExit.value = true
   else emit('close')
 }
 
-async function submit() {
+function submit() {
   generalError.value = ''
   Object.keys(touched).forEach((k) => (touched[k] = true))
-  if (!isValid.value) return
+  if (!isValid.value || saving.value) return
+  // Cambiar el tipo cambia el código: se confirma antes de guardar.
+  if (typeChanged.value) confirmingTypeChange.value = true
+  else save()
+}
+
+async function save() {
+  confirmingTypeChange.value = false
   saving.value = true
   try {
     const hourMeter = Number(form.hourMeter)
     const saved = isEdit.value
-      ? await api.updateEquipment(props.equipment.id, { hourMeter })
+      ? await api.updateEquipment(props.equipment.id, { typeId: form.typeId, hourMeter })
       : await api.createEquipment({ typeId: form.typeId, hourMeter })
     emit('saved', saved)
   } catch (err) {
@@ -115,7 +127,6 @@ async function submit() {
         <select
           v-model="form.typeId"
           required
-          :disabled="isEdit"
           :autofocus="!isEdit"
           @change="onFieldInput('typeId'); touched.typeId = true"
         >
@@ -130,8 +141,12 @@ async function submit() {
       <label class="field">
         <span>Código</span>
         <input :value="displayedCode" type="text" disabled />
-        <small class="hint">
-          {{ isEdit ? 'El código y el tipo no se pueden cambiar' : 'Se genera automáticamente según el tipo' }}
+        <small v-if="typeChanged" class="code-change">
+          Al guardar, el código cambiará de <strong>{{ equipment.code }}</strong> a
+          <strong>{{ displayedCode }}</strong>. Se conserva su historial de mantenimientos.
+        </small>
+        <small v-else class="hint">
+          {{ isEdit ? 'Se asigna según el tipo; cambia si cambias el tipo' : 'Se genera automáticamente según el tipo' }}
         </small>
       </label>
 
@@ -180,6 +195,15 @@ async function submit() {
       danger
       @confirm="emit('close')"
       @cancel="confirmingExit = false"
+    />
+
+    <ConfirmDialog
+      v-if="confirmingTypeChange"
+      title="¿Cambiar el tipo?"
+      :message="`${equipment.code} pasará a ser ${displayedCode} (${selectedType?.name}). Se conserva su historial.`"
+      confirm-text="Cambiar tipo"
+      @confirm="save"
+      @cancel="confirmingTypeChange = false"
     />
   </BaseModal>
 </template>

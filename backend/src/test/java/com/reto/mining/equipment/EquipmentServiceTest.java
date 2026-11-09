@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.reto.mining.equipment.dto.CreateEquipmentRequest;
 import com.reto.mining.equipment.dto.EquipmentResponse;
@@ -94,11 +95,55 @@ class EquipmentServiceTest {
                 .thenReturn(Optional.of(new Equipment("CAM-001", truck, BigDecimal.TEN)));
         saveReturnsArgument();
 
-        EquipmentResponse updated = service.update(1L, new UpdateEquipmentRequest(new BigDecimal("20.5")));
+        EquipmentResponse updated = service.update(1L, new UpdateEquipmentRequest(null, new BigDecimal("20.5")));
 
         assertThat(updated.code()).isEqualTo("CAM-001");
         assertThat(updated.type().name()).isEqualTo("Camión");
         assertThat(updated.hourMeter()).isEqualByComparingTo("20.5");
+    }
+
+    @Test
+    void updateWithSameTypeKeepsCode() {
+        Equipment equipment = new Equipment("CAM-001", truck, BigDecimal.TEN);
+        when(equipmentRepository.findWithTypeById(1L)).thenReturn(Optional.of(equipment));
+        saveReturnsArgument();
+        ReflectionTestUtils.setField(truck, "id", 1L);
+
+        assertThat(service.update(1L, new UpdateEquipmentRequest(1L, BigDecimal.TEN)).code()).isEqualTo("CAM-001");
+        verify(typeRepository, never()).findForUpdateById(any());
+    }
+
+    @Test
+    void changingTypeAssignsCodeOfNewTypeAndKeepsHistory() {
+        Equipment equipment = new Equipment("CAM-004", truck, new BigDecimal("300"));
+        equipment.registerMaintenance("Preventivo"); // ciclo en 0 a las 300 h
+        equipment.updateHourMeter(new BigDecimal("700"));
+        assertThat(equipment.requiresMaintenance()).isTrue(); // 400 h ≥ 250 (camión)
+        ReflectionTestUtils.setField(truck, "id", 1L);
+        ReflectionTestUtils.setField(drill, "id", 3L);
+        when(equipmentRepository.findWithTypeById(4L)).thenReturn(Optional.of(equipment));
+        when(typeRepository.findForUpdateById(3L)).thenReturn(Optional.of(drill));
+        when(equipmentRepository.existsByCode(anyString())).thenReturn(false);
+        saveReturnsArgument();
+
+        EquipmentResponse updated = service.update(4L, new UpdateEquipmentRequest(3L, new BigDecimal("700")));
+
+        assertThat(updated.code()).isEqualTo("PERF-001");
+        assertThat(updated.type().name()).isEqualTo("Perforadora");
+        assertThat(updated.lastMaintenanceHourMeter()).isEqualByComparingTo("300"); // historial intacto
+        assertThat(updated.requiresMaintenance()).isTrue(); // 400 h ≥ 400 (perforadora)
+        assertThat(drill.peekNextCode()).isEqualTo("PERF-002");
+    }
+
+    @Test
+    void changingToUnknownTypeFails() {
+        ReflectionTestUtils.setField(truck, "id", 1L);
+        when(equipmentRepository.findWithTypeById(1L))
+                .thenReturn(Optional.of(new Equipment("CAM-001", truck, BigDecimal.TEN)));
+        when(typeRepository.findForUpdateById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.update(1L, new UpdateEquipmentRequest(99L, BigDecimal.TEN)))
+                .isInstanceOf(BusinessRuleException.class);
     }
 
     @Test
