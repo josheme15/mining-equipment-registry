@@ -113,8 +113,13 @@ ok "Git: rama $BRANCH, sin cambios pendientes, sincronizada con GitHub (${LOCAL_
 step "2/6 Probando y compilando"
 
 cd "$BACKEND_DIR"
-./mvnw -q -B test || fail "Las pruebas del backend fallaron. Revisa la salida de arriba."
-ok "Backend: pruebas OK"
+TEST_LOG="$ROOT_DIR/.backend-test.log"
+if ! ./mvnw -B test >"$TEST_LOG" 2>&1; then
+  grep -E "Tests run:|FAIL|ERROR\]" "$TEST_LOG" | tail -15 >&2
+  fail "Las pruebas del backend fallaron. Detalle completo en .backend-test.log"
+fi
+ok "Backend: $(grep -E '^\[INFO\] Tests run:' "$TEST_LOG" | tail -1 | sed 's/^\[INFO\] //')"
+rm -f "$TEST_LOG"
 
 cd "$FRONTEND_DIR"
 npm ci --silent --no-audit --no-fund || fail "No se pudieron instalar las dependencias del frontend (npm ci)."

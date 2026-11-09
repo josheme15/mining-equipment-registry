@@ -20,5 +20,6 @@ target/
 .DS_Store
 Thumbs.db
 
-# Log temporal de deploy.sh
+# Logs temporales de deploy.sh
 .vercel-deploy.log
+.backend-test.log
