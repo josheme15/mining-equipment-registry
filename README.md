@@ -236,7 +236,7 @@ SIMULATE_FAILURE=1 ./deploy.sh     # despliega, falla a propósito y restaura la
 cd backend && ./mvnw test
 ```
 
-31 pruebas automatizadas:
+28 pruebas automatizadas:
 - `EquipmentTest`: la regla de mantenimiento (límite exacto del intervalo, reinicio del ciclo, intervalo por tipo, el horómetro no baja).
 - `EquipmentServiceTest` (Mockito): código duplicado, tipo inexistente, normalización.
 - `EquipmentControllerTest` (MockMvc): validaciones (código vacío o inválido; horómetro vacío, 0, negativo o con 2 decimales) y códigos HTTP (400, 404, 409, 422).

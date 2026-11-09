@@ -15,7 +15,8 @@ public record EquipmentRequest(
 
         @NotBlank(message = "El código es obligatorio")
         @Size(max = 50, message = "El código admite máximo 50 caracteres")
-        @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 _-]*$",
+        // Vacío o solo espacios lo reporta @NotBlank; el formato se valida solo si hay texto.
+        @Pattern(regexp = "^(\\s*|[A-Za-z0-9][A-Za-z0-9 _-]*)$",
                  message = "El código solo admite letras, números, espacios, guiones y guiones bajos")
         String code,
 

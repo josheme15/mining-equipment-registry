@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -54,13 +55,16 @@ class EquipmentControllerTest {
         verifyNoInteractions(service);
     }
 
-    @ParameterizedTest(name = "code=\"{0}\" → 400")
-    @ValueSource(strings = {"", "   ", "CAM/001"})
-    void invalidCodeReturns400(String code) throws Exception {
+    @ParameterizedTest(name = "code=\"{0}\" → 400 \"{1}\"")
+    @CsvSource(delimiter = '|', value = {
+            "''      | El código es obligatorio",
+            "'   '   | El código es obligatorio",
+            "CAM/001 | El código solo admite letras, números, espacios, guiones y guiones bajos"})
+    void invalidCodeReturns400(String code, String message) throws Exception {
         mvc.perform(post("/api/equipments").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"" + code + "\",\"typeId\":1,\"hourMeter\":10}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.code").exists());
+                .andExpect(jsonPath("$.fieldErrors.code").value(message));
         verifyNoInteractions(service);
     }
 
