@@ -115,7 +115,7 @@ step "2/6 Probando y compilando"
 cd "$BACKEND_DIR"
 TEST_LOG="$ROOT_DIR/.backend-test.log"
 if ! ./mvnw -B test >"$TEST_LOG" 2>&1; then
-  grep -E "Tests run:|FAIL|ERROR\]" "$TEST_LOG" | tail -15 >&2
+  grep -E "^\[ERROR\]   |^\[ERROR\] Tests run:|COMPILATION ERROR|\.java:\[" "$TEST_LOG" | head -15 >&2
   fail "Las pruebas del backend fallaron. Detalle completo en .backend-test.log"
 fi
 ok "Backend: $(grep -E '^\[INFO\] Tests run:' "$TEST_LOG" | tail -1 | sed 's/^\[INFO\] //')"
