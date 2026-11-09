@@ -65,13 +65,18 @@ th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: 
 .badge-danger { background: var(--danger-bg); color: var(--danger); }
 
 /* Botones */
-.btn { border: 1px solid transparent; border-radius: 6px; padding: 0.55rem 1rem; font: inherit; font-size: 0.9rem; cursor: pointer; white-space: nowrap; }
+.btn { border: 1px solid transparent; border-radius: 6px; padding: 0.55rem 1rem; font: inherit; font-size: 0.9rem; cursor: pointer; white-space: nowrap;
+       display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; }
+.icon { flex-shrink: 0; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-small { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
-.btn-secondary { background: #475569; color: #fff; font-weight: 500; }
-.btn-secondary:hover:not(:disabled) { background: #334155; }
+/* Cancelar / volver: naranja (distinto del ámbar de la acción principal) */
+.btn-secondary { background: #c2410c; color: #fff; font-weight: 500; }
+.btn-secondary:hover:not(:disabled) { background: #9a3412; }
+.btn-edit { background: #0f766e; color: #fff; font-weight: 600; }
+.btn-edit:hover:not(:disabled) { background: #115e59; }
 /* Acciones de la tabla: fondos sólidos con texto blanco (contraste ≥ 4.5:1) */
 .btn-info { background: #1d4ed8; color: #fff; font-weight: 600; }
 .btn-info:hover:not(:disabled) { background: #1e40af; }

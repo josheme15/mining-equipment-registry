@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { api } from '../api/client'
 import { formatDate, formatHours } from '../utils/format'
 import BaseModal from './BaseModal.vue'
+import AppIcon from './AppIcon.vue'
 import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps({ equipment: { type: Object, required: true } })
@@ -61,7 +62,7 @@ onMounted(loadHistory)
       <p v-if="error" class="alert alert-error">{{ error }}</p>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary" :disabled="saving">
-          {{ saving ? 'Registrando…' : 'Registrar mantenimiento' }}
+          <AppIcon name="wrench" /> {{ saving ? 'Registrando…' : 'Registrar mantenimiento' }}
         </button>
       </div>
     </form>

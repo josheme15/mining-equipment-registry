@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
+import AppIcon from './AppIcon.vue'
 
 // Diálogo de confirmación propio (reemplaza window.confirm). Se monta sobre cualquier modal.
 const props = defineProps({
@@ -9,6 +10,8 @@ const props = defineProps({
   cancelText: { type: String, default: 'Cancelar' },
   danger: { type: Boolean, default: false },
   busy: { type: Boolean, default: false },
+  confirmIcon: { type: String, default: 'check' },
+  cancelIcon: { type: String, default: 'x' },
 })
 const emit = defineEmits(['confirm', 'cancel'])
 
@@ -37,7 +40,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey, true))
           <p class="confirm-message">{{ message }}</p>
           <div class="form-actions">
             <button ref="cancelButton" type="button" class="btn btn-secondary" :disabled="busy" @click="emit('cancel')">
-              {{ cancelText }}
+              <AppIcon :name="cancelIcon" /> {{ cancelText }}
             </button>
             <button
               type="button"
@@ -46,7 +49,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey, true))
               :disabled="busy"
               @click="emit('confirm')"
             >
-              {{ busy ? 'Procesando…' : confirmText }}
+              <AppIcon :name="confirmIcon" /> {{ busy ? 'Procesando…' : confirmText }}
             </button>
           </div>
         </div>

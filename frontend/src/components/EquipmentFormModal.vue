@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { formatHours } from '../utils/format'
 import BaseModal from './BaseModal.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
+import AppIcon from './AppIcon.vue'
 
 const props = defineProps({
   types: { type: Array, required: true },
@@ -156,14 +157,14 @@ async function submit() {
       <p v-if="generalError" class="alert alert-error">{{ generalError }}</p>
 
       <div class="form-actions">
-        <button type="button" class="btn btn-secondary" :disabled="saving" @click="requestClose">Cancelar</button>
+        <button type="button" class="btn btn-secondary" :disabled="saving" @click="requestClose"><AppIcon name="x" /> Cancelar</button>
         <button
           type="submit"
           class="btn btn-primary"
           :disabled="saving || !isValid"
           :title="!isValid ? 'Completa correctamente todos los campos' : undefined"
         >
-          {{ saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear equipo' }}
+          <AppIcon name="check" /> {{ saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear equipo' }}
         </button>
       </div>
     </form>
@@ -174,6 +175,8 @@ async function submit() {
       :message="isEdit ? `Los cambios en ${equipment.code} se perderán.` : 'Los datos del nuevo equipo se perderán.'"
       confirm-text="Salir sin guardar"
       cancel-text="Seguir editando"
+      cancel-icon="pencil"
+      confirm-icon="log-out"
       danger
       @confirm="emit('close')"
       @cancel="confirmingExit = false"

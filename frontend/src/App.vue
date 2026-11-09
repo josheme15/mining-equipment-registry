@@ -6,6 +6,7 @@ import EquipmentFormModal from './components/EquipmentFormModal.vue'
 import MaintenanceModal from './components/MaintenanceModal.vue'
 import StatusBadge from './components/StatusBadge.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import AppIcon from './components/AppIcon.vue'
 
 const equipments = ref([])
 const types = ref([])
@@ -136,7 +137,9 @@ onMounted(loadAll)
           <h1>⛏️ Registro de Equipos Mineros</h1>
           <p class="subtitle">Control de horómetros y mantenimiento</p>
         </div>
-        <button class="btn btn-primary" :disabled="loading || !!loadError" @click="openCreate">+ Nuevo equipo</button>
+        <button class="btn btn-primary" :disabled="loading || !!loadError" @click="openCreate">
+          <AppIcon name="plus" /> Nuevo equipo
+        </button>
       </div>
     </header>
 
@@ -152,7 +155,7 @@ onMounted(loadAll)
 
       <div v-else-if="loadError" class="card empty">
         <p class="alert alert-error">{{ loadError }}</p>
-        <button class="btn btn-secondary" @click="loadAll">Reintentar</button>
+        <button class="btn btn-secondary" @click="loadAll"><AppIcon name="refresh" /> Reintentar</button>
       </div>
 
       <template v-else>
@@ -211,10 +214,10 @@ onMounted(loadAll)
                   <td>
                     <div class="actions">
                       <button class="btn btn-small" :class="e.requiresMaintenance ? 'btn-warning' : 'btn-info'" @click="maintenanceId = e.id">
-                        🔧 Mantenimiento
+                        <AppIcon name="wrench" size="14" /> Mantenimiento
                       </button>
-                      <button class="btn btn-small btn-secondary" @click="openEdit(e)">Editar</button>
-                      <button class="btn btn-small btn-danger" @click="remove(e)">Eliminar</button>
+                      <button class="btn btn-small btn-edit" @click="openEdit(e)"><AppIcon name="pencil" size="14" /> Editar</button>
+                      <button class="btn btn-small btn-danger" @click="remove(e)"><AppIcon name="trash" size="14" /> Eliminar</button>
                     </div>
                   </td>
                 </tr>
@@ -248,6 +251,7 @@ onMounted(loadAll)
       title="¿Eliminar equipo?"
       :message="`Se borrará ${pendingDelete.code} y su historial.`"
       confirm-text="Eliminar"
+      confirm-icon="trash"
       danger
       :busy="deleting"
       @confirm="confirmDelete"
