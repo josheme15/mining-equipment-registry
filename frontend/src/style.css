@@ -58,6 +58,8 @@ th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: 
 .progress { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; min-width: 120px; margin-bottom: 0.2rem; }
 .progress-bar { height: 100%; background: var(--ok); transition: width 0.3s; }
 .progress-bar.due { background: var(--danger); }
+.overdue { color: var(--danger); font-weight: 600; }
+.cycle-detail { display: block; color: var(--muted); font-size: 0.75rem; margin-top: 0.1rem; white-space: nowrap; }
 
 /* Badges */
 .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
@@ -100,6 +102,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #fde68a; border-c
 .alert { padding: 0.6rem 0.8rem; border-radius: 6px; font-size: 0.9rem; margin: 0 0 1rem; }
 .alert-error { background: var(--danger-bg); color: var(--danger); }
 .alert-success { background: var(--ok-bg); color: var(--ok); }
+.alert-info { background: #e0f2fe; color: #075985; }
 
 /* Modal */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.5); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 10; }

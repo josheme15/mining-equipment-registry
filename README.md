@@ -101,6 +101,8 @@ Intervalos iniciales (migración `V2`): **Camión 250 h · Excavadora 500 h · P
 | `horas desde el último mantenimiento = hour_meter − last_maintenance_hour_meter` | `Equipment` |
 | **Requiere mantenimiento** si esas horas son **≥ intervalo del tipo** | `Equipment.requiresMaintenance()` |
 | Registrar mantenimiento: guarda el historial con el horómetro actual y hace `last_maintenance_hour_meter = hour_meter`. **Todo en una transacción.** | `MaintenanceService` |
+| No se registra otro mantenimiento si el horómetro **no avanzó** desde el último (el ciclo ya está en 0; solo duplicaría el historial) | `Equipment` (422) + frontend |
+| Próximo mantenimiento = `last_maintenance_hour_meter + intervalo`; atraso = horas pasadas de ese punto | `Equipment` → `nextMaintenanceHourMeter`, `overdueHours` |
 | El **código se genera automáticamente** por tipo: `CAM-001`, `EXC-001`, `PERF-001`… El correlativo avanza con cada equipo de ese tipo y **no se reutiliza** al eliminar | `EquipmentService` + `equipment_types.next_sequence` (fila bloqueada con `SELECT … FOR UPDATE`) |
 | **Código y tipo no se editan** después de crear (CAM-001 siempre es un camión); al editar solo cambia el horómetro | `UpdateEquipmentRequest` + frontend |
 | Tipo y horómetro **obligatorios** | Frontend + `@Valid` en la API |
@@ -238,8 +240,8 @@ SIMULATE_FAILURE=1 ./deploy.sh     # despliega, falla a propósito y restaura la
 cd backend && ./mvnw test
 ```
 
-28 pruebas automatizadas:
-- `EquipmentTest`: la regla de mantenimiento (límite exacto del intervalo, reinicio del ciclo, intervalo por tipo, el horómetro no baja).
+30 pruebas automatizadas:
+- `EquipmentTest`: la regla de mantenimiento (límite exacto del intervalo, reinicio del ciclo, intervalo por tipo, el horómetro no baja, próximo mantenimiento y atraso, no se duplica un mantenimiento sin que avance el horómetro).
 - `EquipmentServiceTest` (Mockito): códigos correlativos por tipo (CAM-001, CAM-002, PERF-001), salto de códigos ya existentes, tipo inexistente, la edición solo cambia el horómetro.
 - `EquipmentControllerTest` (MockMvc): validaciones (horómetro vacío, 0, negativo o con 2 decimales, al crear y al editar) y códigos HTTP (400, 404, 409, 422).
 

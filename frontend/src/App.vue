@@ -208,8 +208,13 @@ onMounted(loadAll)
                     <div class="progress" :title="`${formatHours(e.hoursSinceMaintenance)} de ${formatHours(e.type.maintenanceIntervalHours)}`">
                       <div class="progress-bar" :class="{ due: e.requiresMaintenance }" :style="{ width: progress(e) + '%' }"></div>
                     </div>
-                    <small class="muted">
-                      {{ e.requiresMaintenance ? 'Intervalo alcanzado' : `Faltan ${formatHours(e.hoursUntilMaintenance)}` }}
+                    <small v-if="!e.requiresMaintenance" class="muted">Faltan {{ formatHours(e.hoursUntilMaintenance) }}</small>
+                    <small v-else class="overdue">
+                      {{ Number(e.overdueHours) > 0 ? `Atrasado ${formatHours(e.overdueHours)}` : 'Le toca ahora' }}
+                    </small>
+                    <small class="cycle-detail">
+                      Último: {{ Number(e.lastMaintenanceHourMeter) > 0 ? formatHours(e.lastMaintenanceHourMeter) : 'sin registro' }}
+                      · Próximo: {{ formatHours(e.nextMaintenanceHourMeter) }}
                     </small>
                   </td>
                   <td><StatusBadge :requires-maintenance="e.requiresMaintenance" /></td>

@@ -108,4 +108,35 @@ class EquipmentTest {
                 .isInstanceOf(BusinessRuleException.class);
         assertThat(new Equipment("CAM-001", TRUCK, h("0.1")).getHourMeter()).isEqualByComparingTo("0.1");
     }
+
+    @Test
+    @DisplayName("Próximo mantenimiento y atraso se calculan desde el último mantenimiento")
+    void nextMaintenanceAndOverdue() {
+        Equipment truck = new Equipment("CAM-001", TRUCK, h("2501"));
+        truck.registerMaintenance(null);
+        assertThat(truck.nextMaintenanceHourMeter()).isEqualByComparingTo("2751");
+        assertThat(truck.hoursUntilMaintenance()).isEqualByComparingTo("250");
+        assertThat(truck.overdueHours()).isEqualByComparingTo("0");
+
+        truck.updateHourMeter(h("2751"));
+        assertThat(truck.requiresMaintenance()).isTrue();
+        assertThat(truck.overdueHours()).isEqualByComparingTo("0");
+
+        truck.updateHourMeter(h("2821.5"));
+        assertThat(truck.overdueHours()).isEqualByComparingTo("70.5");
+    }
+
+    @Test
+    @DisplayName("No se puede registrar otro mantenimiento si el horómetro no avanzó")
+    void maintenanceRequiresHourMeterToAdvance() {
+        Equipment truck = new Equipment("CAM-001", TRUCK, h("2501"));
+        truck.registerMaintenance("Preventivo");
+
+        assertThatThrownBy(() -> truck.registerMaintenance("Otra vez"))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Ya se registró un mantenimiento a las 2501 h");
+
+        truck.updateHourMeter(h("2501.1"));
+        assertThat(truck.registerMaintenance(null)).isNotNull();
+    }
 }

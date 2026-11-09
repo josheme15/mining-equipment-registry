@@ -83,8 +83,16 @@ public class Equipment {
         this.hourMeter = newHourMeter;
     }
 
-    /** Registra un mantenimiento con el horómetro actual y reinicia el ciclo. */
+    /**
+     * Registra un mantenimiento con el horómetro actual y reinicia el ciclo. Si el horómetro no
+     * avanzó desde el último, se rechaza: el ciclo ya está en 0 y solo duplicaría el historial.
+     */
     public Maintenance registerMaintenance(String notes) {
+        if (hourMeter.compareTo(lastMaintenanceHourMeter) <= 0) {
+            throw new BusinessRuleException("Ya se registró un mantenimiento a las "
+                    + hourMeter.stripTrailingZeros().toPlainString()
+                    + " h. Actualiza el horómetro antes de registrar otro.");
+        }
         Maintenance maintenance = new Maintenance(this, hourMeter, notes);
         this.lastMaintenanceHourMeter = hourMeter;
         return maintenance;
@@ -99,6 +107,17 @@ public class Equipment {
     public BigDecimal hoursUntilMaintenance() {
         BigDecimal remaining = BigDecimal.valueOf(type.getMaintenanceIntervalHours()).subtract(hoursSinceMaintenance());
         return remaining.signum() > 0 ? remaining : BigDecimal.ZERO;
+    }
+
+    /** Horómetro al que le toca el próximo mantenimiento. */
+    public BigDecimal nextMaintenanceHourMeter() {
+        return lastMaintenanceHourMeter.add(BigDecimal.valueOf(type.getMaintenanceIntervalHours()));
+    }
+
+    /** Horas de atraso respecto del intervalo (0 si está al día o justo en el límite). */
+    public BigDecimal overdueHours() {
+        BigDecimal overdue = hourMeter.subtract(nextMaintenanceHourMeter());
+        return overdue.signum() > 0 ? overdue : BigDecimal.ZERO;
     }
 
     /** true si alcanzó (o superó) el intervalo de mantenimiento de su tipo. */

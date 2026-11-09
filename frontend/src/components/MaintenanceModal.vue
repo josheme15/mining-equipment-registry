@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { api } from '../api/client'
 import { formatDate, formatHours } from '../utils/format'
 import BaseModal from './BaseModal.vue'
@@ -14,6 +14,10 @@ const loading = ref(true)
 const notes = ref('')
 const saving = ref(false)
 const error = ref('')
+
+// Si el horómetro no avanzó desde el último mantenimiento, registrar otro solo duplicaría
+// el historial (el backend también lo rechaza).
+const alreadyRegistered = computed(() => Number(props.equipment.hoursSinceMaintenance) <= 0)
 
 async function loadHistory() {
   loading.value = true
@@ -51,17 +55,27 @@ onMounted(loadHistory)
       <span>Horómetro: <strong>{{ formatHours(equipment.hourMeter) }}</strong></span>
       <span>Desde el último: <strong>{{ formatHours(equipment.hoursSinceMaintenance) }}</strong>
         / {{ formatHours(equipment.type.maintenanceIntervalHours) }}</span>
+      <span>Próximo: <strong>{{ formatHours(equipment.nextMaintenanceHourMeter) }}</strong></span>
+      <span v-if="Number(equipment.overdueHours) > 0" class="overdue">
+        Atrasado {{ formatHours(equipment.overdueHours) }}
+      </span>
     </div>
 
     <form class="form" @submit.prevent="register">
       <label class="field">
         <span>Notas (opcional)</span>
-        <textarea v-model="notes" rows="2" maxlength="500" placeholder="Cambio de aceite, filtros…"></textarea>
+        <textarea v-model="notes" :disabled="alreadyRegistered" rows="2" maxlength="500" placeholder="Cambio de aceite, filtros…"></textarea>
       </label>
-      <p class="hint">Se registrará con el horómetro actual ({{ formatHours(equipment.hourMeter) }}) y se reiniciará el ciclo.</p>
+      <p v-if="alreadyRegistered" class="alert alert-info">
+        Ya se registró un mantenimiento a las {{ formatHours(equipment.hourMeter) }}.
+        Actualiza el horómetro (botón Editar) antes de registrar otro.
+      </p>
+      <p v-else class="hint">
+        Se registrará con el horómetro actual ({{ formatHours(equipment.hourMeter) }}) y se reiniciará el ciclo.
+      </p>
       <p v-if="error" class="alert alert-error">{{ error }}</p>
       <div class="form-actions">
-        <button type="submit" class="btn btn-primary" :disabled="saving">
+        <button type="submit" class="btn btn-primary" :disabled="saving || alreadyRegistered">
           <AppIcon name="wrench" /> {{ saving ? 'Registrando…' : 'Registrar mantenimiento' }}
         </button>
       </div>

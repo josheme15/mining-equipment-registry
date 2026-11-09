@@ -15,6 +15,8 @@ public record EquipmentResponse(
         BigDecimal lastMaintenanceHourMeter,
         BigDecimal hoursSinceMaintenance,
         BigDecimal hoursUntilMaintenance,
+        BigDecimal nextMaintenanceHourMeter,
+        BigDecimal overdueHours,
         boolean requiresMaintenance,
         Instant createdAt,
         Instant updatedAt) {
@@ -28,6 +30,8 @@ public record EquipmentResponse(
                 e.getLastMaintenanceHourMeter(),
                 e.hoursSinceMaintenance(),
                 e.hoursUntilMaintenance(),
+                e.nextMaintenanceHourMeter(),
+                e.overdueHours(),
                 e.requiresMaintenance(),
                 e.getCreatedAt(),
                 e.getUpdatedAt());
