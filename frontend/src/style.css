@@ -54,6 +54,21 @@ th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: 
 .actions-col { width: 1%; white-space: nowrap; }
 .legend { margin: 1rem 0 2rem; font-size: 0.8rem; display: flex; gap: 1rem; flex-wrap: wrap; }
 
+/* Paginación */
+.pagination { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+              padding-top: 0.85rem; font-size: 0.85rem; }
+.page-size { display: flex; align-items: center; gap: 0.4rem; color: var(--muted); }
+.page-size select { width: auto; padding: 0.3rem 0.5rem; }
+.page-range { margin-right: auto; }
+.page-buttons { display: flex; align-items: center; gap: 0.25rem; }
+.page-btn { min-width: 2rem; height: 2rem; padding: 0 0.5rem; border: 1px solid var(--border); border-radius: 6px;
+            background: #fff; color: var(--text); font: inherit; font-weight: 600; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; }
+.page-btn:hover:not(:disabled):not(.current) { background: #f3f4f6; }
+.page-btn.current { background: #1f2937; border-color: #1f2937; color: #fff; cursor: default; }
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-gap { padding: 0 0.25rem; color: var(--muted); }
+
 /* Barra de progreso del ciclo */
 .progress { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; min-width: 120px; margin-bottom: 0.2rem; }
 .progress-bar { height: 100%; background: var(--ok); transition: width 0.3s; }

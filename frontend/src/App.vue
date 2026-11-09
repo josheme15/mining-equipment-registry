@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api } from './api/client'
 import { formatHours } from './utils/format'
 import EquipmentFormModal from './components/EquipmentFormModal.vue'
@@ -7,6 +7,8 @@ import MaintenanceModal from './components/MaintenanceModal.vue'
 import StatusBadge from './components/StatusBadge.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import AppIcon from './components/AppIcon.vue'
+import TablePagination from './components/TablePagination.vue'
+import { availablePageSizes } from './utils/pagination'
 
 const equipments = ref([])
 const types = ref([])
@@ -35,6 +37,27 @@ const visibleEquipments = computed(() => {
       (filter.value === 'all' || (filter.value === 'due') === e.requiresMaintenance) &&
       (!term || e.code.includes(term)),
   )
+})
+
+// Paginación (en el cliente: la API devuelve la lista completa, suficiente para una flota).
+// preferredPageSize es lo que eligió el usuario; si con los registros actuales esa opción no
+// aparece (p. ej. 25 con solo 7 equipos), se usa la mayor disponible, que ya los muestra todos.
+const page = ref(1)
+const preferredPageSize = ref(10)
+const pageSize = computed(() => {
+  const sizes = availablePageSizes(visibleEquipments.value.length)
+  return sizes.includes(preferredPageSize.value) ? preferredPageSize.value : sizes[sizes.length - 1]
+})
+const totalPages = computed(() => Math.max(1, Math.ceil(visibleEquipments.value.length / pageSize.value)))
+const pagedEquipments = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return visibleEquipments.value.slice(start, start + pageSize.value)
+})
+// Al cambiar filtro, búsqueda o tamaño se vuelve a la primera página.
+watch([filter, search, preferredPageSize], () => (page.value = 1))
+// Si al eliminar quedan menos páginas, no quedarse en una página vacía.
+watch(totalPages, (n) => {
+  if (page.value > n) page.value = n
 })
 
 const progress = (e) =>
@@ -200,7 +223,7 @@ onMounted(loadAll)
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="e in visibleEquipments" :key="e.id" :class="{ 'row-due': e.requiresMaintenance }">
+                <tr v-for="e in pagedEquipments" :key="e.id" :class="{ 'row-due': e.requiresMaintenance }">
                   <td><strong>{{ e.code }}</strong></td>
                   <td>{{ e.type.name }}</td>
                   <td class="num">{{ formatHours(e.hourMeter) }}</td>
@@ -231,6 +254,14 @@ onMounted(loadAll)
               </tbody>
             </table>
           </div>
+
+          <TablePagination
+            v-if="visibleEquipments.length > 0"
+            v-model:page="page"
+            :page-size="pageSize"
+            :total="visibleEquipments.length"
+            @update:page-size="preferredPageSize = $event"
+          />
         </section>
 
         <section class="legend muted">
