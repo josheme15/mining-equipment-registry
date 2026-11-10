@@ -140,14 +140,7 @@ async function save() {
           :autofocus="!isEdit"
           @change="onFieldInput('typeId'); touched.typeId = true"
         >
-          <option
-            v-for="t in types"
-            :key="t.id"
-            :value="t.id"
-            :disabled="isEdit && t.id === equipment.type.id"
-          >
-            {{ isEdit && t.id === equipment.type.id ? `${t.name} (actual)` : t.name }}
-          </option>
+          <option v-for="t in types" :key="t.id" :value="t.id">{{ t.name }}</option>
         </select>
         <small v-if="selectedType" class="hint">
           Mantenimiento cada {{ formatHours(selectedType.maintenanceIntervalHours) }}
