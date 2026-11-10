@@ -58,6 +58,16 @@ function validate() {
 // Validación en vivo: el botón de guardar se habilita solo si todo es válido.
 const clientErrors = computed(() => validate())
 const isValid = computed(() => Object.keys(clientErrors.value).length === 0)
+// Al editar solo se puede guardar si algo cambió de verdad (700 y 700.0 son el mismo horómetro).
+const hasRealChanges = computed(
+  () => form.typeId !== initial.typeId || Number(form.hourMeter) !== Number(initial.hourMeter),
+)
+const canSave = computed(() => isValid.value && (!isEdit.value || hasRealChanges.value))
+const saveHint = computed(() => {
+  if (!isValid.value) return 'Completa correctamente todos los campos'
+  if (!canSave.value) return 'No hay cambios para guardar'
+  return undefined
+})
 
 // Un error de validación se muestra cuando el usuario ya pasó por el campo;
 // si no, se muestra el que haya devuelto el backend.
@@ -95,7 +105,7 @@ function requestClose() {
 function submit() {
   generalError.value = ''
   Object.keys(touched).forEach((k) => (touched[k] = true))
-  if (!isValid.value || saving.value) return
+  if (!canSave.value || saving.value) return
   // Cambiar el tipo cambia el código: se confirma antes de guardar.
   if (typeChanged.value) confirmingTypeChange.value = true
   else save()
@@ -130,7 +140,14 @@ async function save() {
           :autofocus="!isEdit"
           @change="onFieldInput('typeId'); touched.typeId = true"
         >
-          <option v-for="t in types" :key="t.id" :value="t.id">{{ t.name }}</option>
+          <option
+            v-for="t in types"
+            :key="t.id"
+            :value="t.id"
+            :disabled="isEdit && t.id === equipment.type.id"
+          >
+            {{ isEdit && t.id === equipment.type.id ? `${t.name} (actual)` : t.name }}
+          </option>
         </select>
         <small v-if="selectedType" class="hint">
           Mantenimiento cada {{ formatHours(selectedType.maintenanceIntervalHours) }}
@@ -176,8 +193,8 @@ async function save() {
         <button
           type="submit"
           class="btn btn-primary"
-          :disabled="saving || !isValid"
-          :title="!isValid ? 'Completa correctamente todos los campos' : undefined"
+          :disabled="saving || !canSave"
+          :title="saveHint"
         >
           <AppIcon name="check" /> {{ saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear equipo' }}
         </button>
