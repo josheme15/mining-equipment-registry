@@ -113,8 +113,19 @@ async function loadAll() {
   }
 }
 
-async function reloadEquipments() {
-  equipments.value = await api.listEquipments()
+/**
+ * Tras una operación que YA se guardó, recarga la lista (y los tipos, que traen el próximo
+ * código). Si la recarga falla, el aviso lo dice sin dar a entender que la operación falló.
+ */
+async function refreshAfter(successMessage) {
+  try {
+    const [eqs, tps] = await Promise.all([api.listEquipments(), api.listTypes()])
+    equipments.value = eqs
+    types.value = tps
+    flash(successMessage)
+  } catch {
+    flash(`${successMessage}, pero no se pudo actualizar la lista. Recarga la página.`, 'error')
+  }
 }
 
 function openCreate() {
@@ -130,13 +141,10 @@ function openEdit(equipment) {
 async function onSaved(saved) {
   const previousCode = editing.value?.code
   formOpen.value = false
-  // Los tipos traen el próximo código sugerido (CAM-002…), que cambia al crear.
-  const [eqs, tps] = await Promise.all([api.listEquipments(), api.listTypes()])
-  equipments.value = eqs
-  types.value = tps
-  if (!previousCode) flash(`Equipo ${saved.code} creado`)
-  else if (previousCode !== saved.code) flash(`Equipo ${previousCode} actualizado: ahora es ${saved.code}`)
-  else flash(`Equipo ${saved.code} actualizado`)
+  let message = `Equipo ${saved.code} actualizado`
+  if (!previousCode) message = `Equipo ${saved.code} creado`
+  else if (previousCode !== saved.code) message = `Equipo ${previousCode} actualizado: ahora es ${saved.code}`
+  await refreshAfter(message)
 }
 
 function remove(equipment) {
@@ -148,19 +156,18 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await api.deleteEquipment(equipment.id)
-    await reloadEquipments()
-    flash(`Equipo ${equipment.code} eliminado`)
   } catch (err) {
     flash(`No se pudo eliminar ${equipment.code}: ${err.message}`, 'error')
+    return
   } finally {
     deleting.value = false
     pendingDelete.value = null
   }
+  await refreshAfter(`Equipo ${equipment.code} eliminado`)
 }
 
 async function onMaintenanceRegistered() {
-  await reloadEquipments()
-  flash('Mantenimiento registrado: ciclo reiniciado')
+  await refreshAfter('Mantenimiento registrado: ciclo reiniciado')
 }
 
 onMounted(loadAll)

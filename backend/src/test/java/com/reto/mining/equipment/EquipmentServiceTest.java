@@ -91,7 +91,7 @@ class EquipmentServiceTest {
 
     @Test
     void updateChangesOnlyHourMeter() {
-        when(equipmentRepository.findWithTypeById(1L))
+        when(equipmentRepository.findForUpdateById(1L))
                 .thenReturn(Optional.of(new Equipment("CAM-001", truck, BigDecimal.TEN)));
         saveReturnsArgument();
 
@@ -105,7 +105,7 @@ class EquipmentServiceTest {
     @Test
     void updateWithSameTypeKeepsCode() {
         Equipment equipment = new Equipment("CAM-001", truck, BigDecimal.TEN);
-        when(equipmentRepository.findWithTypeById(1L)).thenReturn(Optional.of(equipment));
+        when(equipmentRepository.findForUpdateById(1L)).thenReturn(Optional.of(equipment));
         saveReturnsArgument();
         ReflectionTestUtils.setField(truck, "id", 1L);
 
@@ -121,7 +121,7 @@ class EquipmentServiceTest {
         assertThat(equipment.requiresMaintenance()).isTrue(); // 400 h ≥ 250 (camión)
         ReflectionTestUtils.setField(truck, "id", 1L);
         ReflectionTestUtils.setField(drill, "id", 3L);
-        when(equipmentRepository.findWithTypeById(4L)).thenReturn(Optional.of(equipment));
+        when(equipmentRepository.findForUpdateById(4L)).thenReturn(Optional.of(equipment));
         when(typeRepository.findForUpdateById(3L)).thenReturn(Optional.of(drill));
         when(equipmentRepository.existsByCode(anyString())).thenReturn(false);
         saveReturnsArgument();
@@ -138,7 +138,7 @@ class EquipmentServiceTest {
     @Test
     void changingToUnknownTypeFails() {
         ReflectionTestUtils.setField(truck, "id", 1L);
-        when(equipmentRepository.findWithTypeById(1L))
+        when(equipmentRepository.findForUpdateById(1L))
                 .thenReturn(Optional.of(new Equipment("CAM-001", truck, BigDecimal.TEN)));
         when(typeRepository.findForUpdateById(99L)).thenReturn(Optional.empty());
 

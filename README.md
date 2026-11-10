@@ -101,12 +101,12 @@ Intervalos iniciales (migración `V2`): **Camión 250 h · Excavadora 500 h · P
 | `horas desde el último mantenimiento = hour_meter − last_maintenance_hour_meter` | `Equipment` |
 | **Requiere mantenimiento** si esas horas son **≥ intervalo del tipo** | `Equipment.requiresMaintenance()` |
 | Registrar mantenimiento: guarda el historial con el horómetro actual y hace `last_maintenance_hour_meter = hour_meter`. **Todo en una transacción.** | `MaintenanceService` |
-| No se registra otro mantenimiento si el horómetro **no avanzó** desde el último (el ciclo ya está en 0; solo duplicaría el historial) | `Equipment` (422) + frontend |
+| No se registra otro mantenimiento si el horómetro **no avanzó** desde el último (el ciclo ya está en 0; solo duplicaría el historial). El equipo se lee con `SELECT … FOR UPDATE`, así dos registros simultáneos tampoco se duplican | `Equipment` (422) + `MaintenanceService` + frontend |
 | Próximo mantenimiento = `last_maintenance_hour_meter + intervalo`; atraso = horas pasadas de ese punto | `Equipment` → `nextMaintenanceHourMeter`, `overdueHours` |
 | El **código se genera automáticamente** por tipo: `CAM-001`, `EXC-001`, `PERF-001`… El correlativo avanza con cada equipo de ese tipo y **no se reutiliza** al eliminar | `EquipmentService` + `equipment_types.next_sequence` (fila bloqueada con `SELECT … FOR UPDATE`) |
 | Al editar se puede **cambiar el tipo**: el equipo recibe el **siguiente código del nuevo tipo** (CAM-004 → EXC-006), conserva su historial y su estado se recalcula con el nuevo intervalo. El código nunca se escribe a mano | `EquipmentService.update` + confirmación en el frontend |
 | Tipo y horómetro **obligatorios** | Frontend + `@Valid` en la API |
-| Horómetro **mayor a 0**, con **máximo 1 decimal** (`1.2` sí, `1.25` no; `0` y negativos no) | Frontend + `@Valid` + entidad |
+| Horómetro **mayor a 0**, con **máximo 1 decimal** (`1.2` sí, `1.25` no; `0` y negativos no) | Frontend + `@Valid` + entidad + `CHECK` en BD |
 | El horómetro **no puede disminuir** | Entidad + `CHECK` en BD |
 | El código es **único** | Generación con bloqueo + `UNIQUE` en BD |
 | Un equipo nuevo empieza su ciclo en **0 h** | `Equipment` (ver [decisiones](#decisiones-y-limitaciones)) |
@@ -157,6 +157,15 @@ Errores, siempre con el mismo formato:
 { "status": 422, "error": "Unprocessable Content",
   "message": "El horómetro no puede disminuir (actual: 260 h)", "fieldErrors": {} }
 ```
+
+| Código | Cuándo |
+|---|---|
+| 400 | Datos inválidos (`fieldErrors` por campo) o JSON mal formado |
+| 404 | El equipo no existe |
+| 405 | Método no soportado en la ruta (p. ej. `PATCH`); el encabezado `Allow` indica los válidos |
+| 409 | Se violó una restricción de la base de datos |
+| 415 | El cuerpo no viene como `application/json` |
+| 422 | Regla de negocio (horómetro que baja, mantenimiento duplicado, tipo inexistente) |
 </details>
 
 ## Levantar en local
@@ -240,10 +249,10 @@ SIMULATE_FAILURE=1 ./deploy.sh     # despliega, falla a propósito y restaura la
 cd backend && ./mvnw test
 ```
 
-33 pruebas automatizadas:
+35 pruebas automatizadas:
 - `EquipmentTest`: la regla de mantenimiento (límite exacto del intervalo, reinicio del ciclo, intervalo por tipo, el horómetro no baja, próximo mantenimiento y atraso, no se duplica un mantenimiento sin que avance el horómetro).
 - `EquipmentServiceTest` (Mockito): códigos correlativos por tipo (CAM-001, CAM-002, PERF-001), salto de códigos ya existentes, tipo inexistente, edición del horómetro, cambio de tipo con código nuevo e historial intacto.
-- `EquipmentControllerTest` (MockMvc): validaciones (horómetro vacío, 0, negativo o con 2 decimales, al crear y al editar) y códigos HTTP (400, 404, 409, 422).
+- `EquipmentControllerTest` (MockMvc): validaciones (horómetro vacío, 0, negativo o con 2 decimales, al crear y al editar) y códigos HTTP (400, 404, 405, 409, 415, 422).
 
 **GitHub Actions** (`.github/workflows/ci.yml`) corre en cada push y pull request: pruebas del backend, build del frontend y build de la imagen Docker.
 

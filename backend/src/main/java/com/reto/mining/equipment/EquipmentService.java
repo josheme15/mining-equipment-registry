@@ -46,7 +46,7 @@ public class EquipmentService {
 
     @Transactional
     public EquipmentResponse update(Long id, UpdateEquipmentRequest request) {
-        Equipment equipment = findOrThrow(id);
+        Equipment equipment = findForUpdateOrThrow(id);
         equipment.updateHourMeter(request.hourMeter());
         Long newTypeId = request.typeId();
         if (newTypeId != null && !newTypeId.equals(equipment.getType().getId())) {
@@ -65,6 +65,16 @@ public class EquipmentService {
     /** Usado por otros módulos (mantenimientos). */
     public Equipment findOrThrow(Long id) {
         return equipmentRepository.findWithTypeById(id)
+                .orElseThrow(() -> new NotFoundException("No existe el equipo con id " + id));
+    }
+
+    /**
+     * Igual que {@link #findOrThrow} pero bloqueando la fila hasta el fin de la transacción.
+     * Evita que dos solicitudes simultáneas pasen a la vez una validación (p. ej. dos
+     * mantenimientos con el mismo horómetro).
+     */
+    public Equipment findForUpdateOrThrow(Long id) {
+        return equipmentRepository.findForUpdateById(id)
                 .orElseThrow(() -> new NotFoundException("No existe el equipo con id " + id));
     }
 

@@ -6,9 +6,12 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -40,16 +43,29 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, msg, Map.of());
     }
 
-    @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<ApiError> handleConflict(ConflictException ex) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), Map.of());
+    /** Método HTTP no soportado en la ruta (p. ej. PATCH) → 405, con los métodos válidos en Allow. */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex) {
+        HttpHeaders headers = new HttpHeaders();
+        if (ex.getSupportedHttpMethods() != null) {
+            headers.setAllow(ex.getSupportedHttpMethods());
+        }
+        String message = "El método " + ex.getMethod() + " no está permitido en esta ruta";
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).headers(headers)
+                .body(ApiError.of(405, HttpStatus.METHOD_NOT_ALLOWED.getReasonPhrase(), message));
     }
 
-    /** Respaldo si dos solicitudes crean el mismo código a la vez (lo detecta la restricción UNIQUE). */
+    /** Cuerpo con un Content-Type distinto de JSON → 415. */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "El cuerpo debe enviarse como application/json", Map.of());
+    }
+
+    /** Respaldo ante una restricción de la base de datos (UNIQUE, CHECK, FK) que la app no previó. */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException ex) {
         log.warn("Violación de integridad: {}", ex.getMostSpecificCause().getMessage());
-        return build(HttpStatus.CONFLICT, "La operación viola una restricción de datos (¿código duplicado?)", Map.of());
+        return build(HttpStatus.CONFLICT, "La operación viola una restricción de los datos", Map.of());
     }
 
     @ExceptionHandler(BusinessRuleException.class)

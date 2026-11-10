@@ -24,11 +24,12 @@ public class MaintenanceService {
 
     /**
      * Registra un mantenimiento: guarda el historial y reinicia el ciclo del equipo.
-     * Ambas cosas ocurren en la misma transacción: o se guardan las dos, o ninguna.
+     * Ambas cosas ocurren en la misma transacción: o se guardan las dos, o ninguna. El equipo se
+     * lee bloqueado para que dos registros simultáneos no dupliquen el historial.
      */
     @Transactional
     public MaintenanceResponse register(Long equipmentId, MaintenanceRequest request) {
-        Equipment equipment = equipmentService.findOrThrow(equipmentId);
+        Equipment equipment = equipmentService.findForUpdateOrThrow(equipmentId);
         String notes = request == null ? null : request.normalizedNotes();
         Maintenance saved = maintenanceRepository.save(equipment.registerMaintenance(notes));
         return MaintenanceResponse.from(saved, equipmentId);

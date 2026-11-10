@@ -4,9 +4,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -15,12 +18,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.reto.mining.shared.exception.BusinessRuleException;
-import com.reto.mining.shared.exception.ConflictException;
 import com.reto.mining.shared.exception.NotFoundException;
 
 /** Prueba la capa HTTP: validaciones y códigos de error (sin base de datos). */
@@ -70,13 +73,32 @@ class EquipmentControllerTest {
     }
 
     @Test
-    void conflictReturns409() throws Exception {
-        when(service.create(any())).thenThrow(new ConflictException("Ya existe un equipo con el código CAM-001"));
+    void dataIntegrityViolationReturns409() throws Exception {
+        when(service.create(any())).thenThrow(new DataIntegrityViolationException("Duplicate entry 'CAM-001'"));
 
         mvc.perform(post("/api/equipments").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"typeId\":1,\"hourMeter\":10}"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("Ya existe un equipo con el código CAM-001"));
+                .andExpect(jsonPath("$.status").value(409));
+    }
+
+    @Test
+    void unsupportedMethodReturns405NotA500() throws Exception {
+        mvc.perform(patch("/api/equipments/1").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().exists("Allow"))
+                .andExpect(jsonPath("$.message").value("El método PATCH no está permitido en esta ruta"));
+        mvc.perform(delete("/api/equipments"))
+                .andExpect(status().isMethodNotAllowed());
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void nonJsonBodyReturns415NotA500() throws Exception {
+        mvc.perform(post("/api/equipments").contentType(MediaType.TEXT_PLAIN).content("hola"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415));
+        verifyNoInteractions(service);
     }
 
     @Test
