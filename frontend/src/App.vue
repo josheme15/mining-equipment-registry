@@ -178,8 +178,8 @@ onMounted(loadAll)
     <header class="topbar">
       <div class="container topbar-inner">
         <div>
-          <h1>⛏️ Registro de Equipos Mineros</h1>
-          <p class="subtitle">Control de horómetros y mantenimiento v1</p>
+          <h1>⛏️ Registro de Equipos Mineros v2</h1>
+          <p class="subtitle">Control de horómetros y mantenimiento</p>
         </div>
         <button class="btn btn-primary" :disabled="loading || !!loadError" @click="openCreate">
           <AppIcon name="plus" /> Nuevo equipo
